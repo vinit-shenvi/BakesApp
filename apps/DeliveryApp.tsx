@@ -13,7 +13,7 @@ import { Badge, Card, Button } from '../components/Shared';
 type ViewMode = 'LIST' | 'NAVIGATION';
 
 export const DeliveryApp: React.FC = () => {
-  const { partners, orders, togglePartnerStatus, updateOrderStatus } = useStore();
+  const { deliveryPartners: partners, orders, togglePartnerStatus, updateOrderStatus } = useStore();
   const [partnerId] = useState('p1');
   const partner = partners.find(p => p.id === partnerId);
   const [activeTab, setActiveTab] = useState<'home' | 'earnings' | 'profile'>('home');

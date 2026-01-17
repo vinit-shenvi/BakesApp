@@ -22,7 +22,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products] = useState<Product[]>(PRODUCTS);
-  const [orders, setOrders] = useState<Order[]>([]); // Start empty, fetch from server
+  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS); // Start with mock data for Vercel demo
   const [deliveryPartners] = useState<DeliveryPartner[]>(DELIVERY_PARTNERS);
   const [user] = useState<User>({ id: 'u1', name: 'Admin User', email: 'admin@kantibakes.com', role: 'admin' });
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -30,21 +30,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Fetch orders on mount and poll every 2 seconds
   useEffect(() => {
+    // In valid production, we would fetch from a real backend.
+    // For this Vercel demo without a separate backend, we'll skip the fetch or likely use mock data.
+    // The ORDERS are initialized to [] but we might want MOCK_ORDERS if we want to see something.
+    if (orders.length === 0) {
+      // setOrders(MOCK_ORDERS); // Optional: if we want to start with data
+    }
+
     const fetchOrders = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/orders');
-        if (response.ok) {
-          const data = await response.json();
-          setOrders(data);
-        }
+        // const response = await fetch('http://localhost:5000/api/orders');
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setOrders(data);
+        // }
       } catch (error) {
         console.error("Failed to fetch orders:", error);
       }
     };
 
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 2000); // Polling for real-time updates
-    return () => clearInterval(interval);
+    // fetchOrders();
+    // const interval = setInterval(fetchOrders, 2000); 
+    // return () => clearInterval(interval);
   }, []);
 
   const addToCart = (product: Product) => {
