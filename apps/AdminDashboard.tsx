@@ -23,9 +23,10 @@ const data = [
 export const AdminDashboard: React.FC = () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const { orders, products, deliveryPartners, updateOrderStatus, addPartner } = useStore();
-  const [activeView, setActiveView] = useState<'overview' | 'orders' | 'products' | 'delivery' | 'festivals' | 'customers' | 'settings'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'orders' | 'products' | 'delivery' | 'festivals' | 'customers' | 'settings' | 'order_details'>('overview');
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // Onboarding Form State
   const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '' });
@@ -182,7 +183,12 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-amber-700 font-bold">{order.id}</span>
+                    <button
+                      onClick={() => { setSelectedOrderId(order.id); setActiveView('order_details'); }}
+                      className="text-amber-700 font-bold hover:underline"
+                    >
+                      {order.id}
+                    </button>
                     <Badge variant={order.status === OrderStatus.NEW ? 'warning' : order.status === OrderStatus.DELIVERED ? 'success' : 'info'}>
                       {order.status}
                     </Badge>
@@ -256,6 +262,171 @@ export const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
+
+  const renderOrderDetails = () => {
+    const order = orders.find(o => o.id === selectedOrderId);
+    if (!order) return <div className="p-8">Order not found</div>;
+
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-10 duration-500">
+        <div className="flex items-center gap-4">
+          <Button variant="danger" className="text-sm px-4 py-2" onClick={() => { setActiveView('orders'); setSelectedOrderId(null); }}>Back</Button>
+          <h2 className="text-2xl font-bold">Order Details</h2>
+        </div>
+
+        {/* Summary Card */}
+        <Card className="p-8">
+          <h3 className="font-bold text-lg mb-6">Order Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <p className="text-sm font-bold text-stone-500 mb-1">Order ID</p>
+              <p className="font-black text-stone-800">{order.id}</p>
+              <p className="text-sm font-bold text-stone-500 mb-1 mt-4">Order Source</p>
+              <p className="font-medium text-stone-800">Mobile App</p>
+              <p className="text-sm font-bold text-stone-500 mb-1 mt-4">Shipping Charge</p>
+              <p className="font-medium text-stone-800">₹{order.shippingCharge || 0}</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-stone-500 mb-1">Status</p>
+              <Badge variant={order.status === OrderStatus.DELIVERED ? 'success' : 'warning'}>{order.status}</Badge>
+              <p className="text-sm font-bold text-stone-500 mb-1 mt-4">Order Type</p>
+              <Badge variant="primary" className="flex items-center gap-1 w-fit"><Truck className="w-3 h-3" /> Delivery</Badge>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-stone-500 mb-1">Ordered At</p>
+              <p className="font-medium text-stone-800">{new Date(order.timestamp).toLocaleString()}</p>
+              <p className="text-sm font-bold text-stone-500 mb-1 mt-4">Total</p>
+              <p className="font-black text-xl text-stone-800">₹{order.total}</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Items Table */}
+        <Card className="p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-lg">Order Items</h3>
+            <Button className="bg-stone-900 text-white text-xs">Invoice</Button>
+          </div>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-stone-100 text-stone-500 text-sm">
+                <th className="py-3 font-bold">Product</th>
+                <th className="py-3 font-bold">Variant</th>
+                <th className="py-3 font-bold">Qty</th>
+                <th className="py-3 font-bold text-right">Price</th>
+                <th className="py-3 font-bold text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100/50">
+              {order.items.map(item => (
+                <tr key={item.id}>
+                  <td className="py-4 font-medium text-stone-800">{item.name}</td>
+                  <td className="py-4 text-stone-500">Standard</td>
+                  <td className="py-4 text-stone-800">{item.quantity}</td>
+                  <td className="py-4 text-right text-stone-600">₹{item.price.toFixed(2)}</td>
+                  <td className="py-4 text-right font-bold text-stone-800">₹{(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td colSpan={5} className="py-4 text-right space-y-2">
+                  <div className="flex justify-between max-w-xs ml-auto">
+                    <span className="text-stone-500 text-sm">Tax</span>
+                    <span className="font-bold">₹{order.tax || 0}</span>
+                  </div>
+                  <div className="flex justify-between max-w-xs ml-auto">
+                    <span className="text-stone-500 text-sm">Shipping Charge</span>
+                    <span className="font-bold">₹{order.shippingCharge || 0}</span>
+                  </div>
+                  <div className="flex justify-between max-w-xs ml-auto pt-2 border-t border-stone-100">
+                    <span className="text-stone-800 font-bold">Total</span>
+                    <span className="font-black text-xl">₹{order.total}</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </Card>
+
+        {/* Info Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="p-8">
+            <h3 className="font-bold text-lg mb-6">Customer & Address</h3>
+            <div className="space-y-6">
+              <div>
+                <span className="font-bold text-stone-800">Customer:</span> <span className="text-stone-600 mb-1">{order.customerName}</span>
+                <span className="text-stone-400 text-xs ml-2">({order.customerPhone})</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-bold text-sm text-stone-800 mb-1">Billing Address</p>
+                  <p className="text-xs text-stone-500 leading-relaxed">{order.address}</p>
+                  <p className="text-xs text-stone-500 mt-1">Contact: ({order.customerPhone})</p>
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-stone-800 mb-1">Shipping Address</p>
+                  <p className="text-xs text-stone-500 leading-relaxed">{order.address}</p>
+                  <p className="text-xs text-stone-500 mt-1">Contact: ({order.customerPhone})</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-8 flex flex-col justify-between">
+            <div>
+              <h3 className="font-bold text-lg mb-6">Payment Details</h3>
+              <div className="flex justify-between mb-4">
+                <div>
+                  <p className="font-bold text-sm text-stone-800">Status</p>
+                  <p className="text-xs text-stone-500 uppercase">{order.paymentStatus}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-stone-800">Transaction ID</p>
+                  <p className="text-xs text-stone-500">{order.transactionId || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-stone-800">Payment Time</p>
+                  <p className="text-xs text-stone-500">{new Date(order.timestamp).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-8">
+            <h3 className="font-bold text-lg mb-6">Store Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="font-bold text-sm text-stone-800 mb-1">Store Name: Attibele</p>
+                <p className="text-xs text-stone-500">Store Code: 122 / 66131</p>
+                <p className="text-xs text-stone-500">Store Type: OUTLET</p>
+                <p className="text-xs text-stone-500">Status: ACTIVE</p>
+              </div>
+              <div>
+                <p className="font-bold text-sm text-stone-800 mb-1">Store Address</p>
+                <p className="text-xs text-stone-500 leading-relaxed">Attibele, Kanti Sweets Pvt Ltd, No 1, , Chinnanna Gowda Complex, Anekal Main road, BENGALURU, Karnataka, 562107, India</p>
+                <p className="text-xs text-stone-500 mt-1">Contact: (Srinivas M V / 8884197411)</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-8">
+            <h3 className="font-bold text-lg mb-6">Order Activity</h3>
+            <div className="relative border-l-2 border-stone-100 ml-3 space-y-8">
+              {(order.activityLog || []).map((log, i) => (
+                <div key={i} className="relative pl-8">
+                  <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-stone-200 border-2 border-white"></div>
+                  <p className="text-xs text-stone-400 mb-1">{new Date(log.timestamp).toLocaleString()}</p>
+                  <p className="font-bold text-stone-800">{log.status}</p>
+                  {log.message && <p className="text-xs text-stone-500 mt-0.5">{log.message}</p>}
+                </div>
+              ))}
+              {(!order.activityLog || order.activityLog.length === 0) && <p className="text-sm text-stone-400 pl-8">No activity recorded yet.</p>}
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  };
+
 
   const renderFestivals = () => (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
@@ -686,6 +857,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#fafafa]">
           {activeView === 'overview' && renderOverview()}
           {activeView === 'orders' && renderOrders()}
+          {activeView === 'order_details' && renderOrderDetails()}
           {activeView === 'products' && renderProducts()}
           {activeView === 'delivery' && renderDelivery()}
           {activeView === 'festivals' && renderFestivals()}

@@ -44,6 +44,10 @@ export interface Order {
   timestamp: string;
   partnerId?: string;
   paymentStatus: 'PAID' | 'PENDING';
+  shippingCharge?: number;
+  tax?: number;
+  transactionId?: string;
+  activityLog?: { status: string; timestamp: string; message: string }[];
 }
 
 export interface User {

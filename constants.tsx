@@ -38,6 +38,14 @@ export const INITIAL_ORDERS: Order[] = [
     status: OrderStatus.NEW,
     method: DeliveryMethod.HOME_DELIVERY,
     timestamp: new Date().toISOString(),
-    paymentStatus: 'PAID'
+    paymentStatus: 'PAID',
+    shippingCharge: 80,
+    tax: 26.9,
+    transactionId: 'ORDR_26_P2811_5WRR',
+    activityLog: [
+      { status: 'Order created', timestamp: new Date(Date.now() - 3600000).toISOString(), message: 'Order placed by customer' },
+      { status: 'Payment received for order', timestamp: new Date(Date.now() - 3500000).toISOString(), message: 'Transaction ID: ORDR_26_P2811_5WRR' },
+      { status: 'Order accepted at store', timestamp: new Date(Date.now() - 3000000).toISOString(), message: 'Store acknowledged order' }
+    ]
   }
 ];
