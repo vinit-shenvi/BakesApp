@@ -5,6 +5,8 @@ import {
    MapPin, Package, Clock, Truck, CheckCircle2, X, ChevronDown, Utensils, Info, Phone, ArrowLeft, ArrowRight, Wallet, LogOut,
    Settings, LocateFixed
 } from 'lucide-react';
+import { GoogleMap } from '@react-google-maps/api';
+import { MapsWrapper } from '../components/MapsWrapper';
 import { useStore } from '../storeContext';
 import { CATEGORIES } from '../constants';
 import { Badge, Card, Button } from '../components/Shared';
@@ -489,70 +491,68 @@ export const CustomerApp: React.FC = () => {
       </div>
    );
 
-   const LocationPicker = () => (
-      <div className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-md flex items-end justify-center animate-in fade-in" onClick={() => setShowLocationPicker(false)}>
-         <div className="bg-white w-full max-w-md rounded-t-[52px] p-8 pb-12 animate-in slide-in-from-bottom-full duration-500" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-stone-200 rounded-full mx-auto mb-8" />
-            <div className="flex justify-between items-center mb-10">
-               <h2 className="text-2xl font-black text-stone-800 uppercase tracking-tighter">Select Location</h2>
-               <button onClick={() => setShowLocationPicker(false)} className="p-3 bg-stone-100 rounded-full"><X className="w-5 h-5" /></button>
-            </div>
+   const LocationPicker = () => {
+      // Default center (Bangalore)
+      const defaultCenter = { lat: 12.9716, lng: 77.5946 };
+      const [center, setCenter] = useState(defaultCenter);
 
-            <div className="flex p-1.5 bg-stone-50 rounded-[32px] mb-8 border border-stone-100">
-               <button
-                  onClick={() => setDeliveryMethod(DeliveryMethod.HOME_DELIVERY)}
-                  className={`flex-1 py-3.5 rounded-[28px] text-[10px] font-black uppercase tracking-widest transition-all ${deliveryMethod === DeliveryMethod.HOME_DELIVERY ? 'bg-white shadow-lg text-orange-600' : 'text-stone-300'}`}
-               >Delivery</button>
-               <button
-                  onClick={() => setDeliveryMethod(DeliveryMethod.PICKUP)}
-                  className={`flex-1 py-3.5 rounded-[28px] text-[10px] font-black uppercase tracking-widest transition-all ${deliveryMethod === DeliveryMethod.PICKUP ? 'bg-white shadow-lg text-orange-600' : 'text-stone-300'}`}
-               >Self Pickup</button>
-            </div>
+      return (
+         <div className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-md flex items-end justify-center animate-in fade-in" onClick={() => setShowLocationPicker(false)}>
+            <div className="bg-white w-full max-w-md rounded-t-[52px] animate-in slide-in-from-bottom-full duration-500 overflow-hidden flex flex-col h-[85vh]" onClick={e => e.stopPropagation()}>
+               {/* Header */}
+               <div className="px-8 pt-8 pb-4 flex justify-between items-center bg-white z-10 relative">
+                  <div>
+                     <h2 className="text-2xl font-black text-stone-800 uppercase tracking-tighter">Pin Location</h2>
+                     <p className="text-xs font-bold text-stone-400">Drag map to adjust</p>
+                  </div>
+                  <button onClick={() => setShowLocationPicker(false)} className="p-3 bg-stone-100 rounded-full hover:bg-stone-200 transition-colors"><X className="w-5 h-5" /></button>
+               </div>
 
-            <div className="relative mb-8">
-               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
-               <input type="text" placeholder="Search for your area, house..." className="w-full pl-12 pr-4 py-4 bg-stone-50 rounded-3xl text-sm font-medium border-none outline-none ring-1 ring-stone-100 focus:ring-orange-200" />
-            </div>
+               {/* Map Area */}
+               <div className="flex-1 relative bg-stone-100">
+                  <MapsWrapper>
+                     <GoogleMap
+                        mapContainerStyle={{ width: '100%', height: '100%' }}
+                        center={center}
+                        zoom={15}
+                        options={{ disableDefaultUI: true, zoomControl: true }}
+                        onDragEnd={() => { /* logic to update center state from map instance if needed, usually requires ref to map */ }}
+                     >
+                        {/* Center Pin Overlay (Static for UI, map moves behind it) */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pb-8 pointer-events-none">
+                           <MapPin className="w-10 h-10 text-orange-600 fill-orange-600 drop-shadow-2xl animate-bounce" />
+                           <div className="w-4 h-1.5 bg-black/20 rounded-[100%] mx-auto blur-[1px]" />
+                        </div>
+                     </GoogleMap>
+                  </MapsWrapper>
 
-            <button className="flex items-center gap-3 text-orange-600 font-bold text-sm mb-10">
-               <LocateFixed className="w-5 h-5" /> Use current location
-            </button>
+                  {/* Search Overlay */}
+                  <div className="absolute top-4 left-4 right-4 shadow-lg rounded-[24px]">
+                     <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input type="text" placeholder="Search area, street..." className="w-full pl-12 pr-4 py-4 bg-white rounded-[24px] text-sm font-bold shadow-sm outline-none" />
+                     </div>
+                  </div>
+               </div>
 
-            <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest mb-6">{deliveryMethod === DeliveryMethod.HOME_DELIVERY ? 'Saved Addresses' : 'Select Store to Pickup From'}</p>
-            <div className="space-y-4 max-h-[300px] overflow-y-auto no-scrollbar pr-1">
-               {deliveryMethod === DeliveryMethod.HOME_DELIVERY ? (
-                  ['Home', 'Office'].map(label => (
-                     <button key={label} onClick={() => setShowLocationPicker(false)} className="w-full p-6 rounded-[32px] border border-stone-100 flex items-center gap-5 text-left group hover:border-orange-500 transition-all">
-                        <div className="p-3 bg-stone-50 rounded-2xl text-stone-400 group-hover:bg-orange-600 group-hover:text-white transition-all">
-                           {label === 'Home' ? <Home className="w-5 h-5" /> : <Package className="w-5 h-5" />}
-                        </div>
-                        <div>
-                           <p className="font-bold text-stone-800 text-sm">{label}</p>
-                           <p className="text-xs text-stone-400">Sector 7, HSR, Bangalore...</p>
-                        </div>
-                     </button>
-                  ))
-               ) : (
-                  STORES.map(store => (
-                     <button key={store.id} onClick={() => { setSelectedStore(store); setShowLocationPicker(false); }} className={`w-full p-6 rounded-[32px] border flex items-center gap-5 text-left transition-all ${selectedStore.id === store.id ? 'border-orange-500 bg-orange-50/30' : 'border-stone-100'}`}>
-                        <div className={`p-3 rounded-2xl ${selectedStore.id === store.id ? 'bg-orange-600 text-white' : 'bg-stone-50 text-stone-400'}`}>
-                           <Package className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                           <div className="flex justify-between items-center mb-0.5">
-                              <p className="font-bold text-stone-800 text-sm">{store.name}</p>
-                              <span className="text-[10px] font-black text-emerald-600 uppercase">Open Now</span>
-                           </div>
-                           <p className="text-xs text-stone-500 mb-1">{store.address}</p>
-                           <p className="text-[10px] font-bold text-stone-400">{store.dist} km away</p>
-                        </div>
-                     </button>
-                  ))
-               )}
+               {/* Footer */}
+               <div className="p-8 bg-white z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                  <div className="flex p-1.5 bg-stone-50 rounded-[32px] mb-6 border border-stone-100">
+                     <button onClick={() => setDeliveryMethod(DeliveryMethod.HOME_DELIVERY)} className={`flex-1 py-3.5 rounded-[28px] text-[10px] font-black uppercase tracking-widest transition-all ${deliveryMethod === DeliveryMethod.HOME_DELIVERY ? 'bg-white shadow-lg text-orange-600' : 'text-stone-300'}`}>Delivery</button>
+                     <button onClick={() => setDeliveryMethod(DeliveryMethod.PICKUP)} className={`flex-1 py-3.5 rounded-[28px] text-[10px] font-black uppercase tracking-widest transition-all ${deliveryMethod === DeliveryMethod.PICKUP ? 'bg-white shadow-lg text-orange-600' : 'text-stone-300'}`}>Self Pickup</button>
+                  </div>
+
+                  <button
+                     onClick={() => setShowLocationPicker(false)}
+                     className="w-full bg-stone-900 text-white py-5 rounded-[28px] font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3"
+                  >
+                     Confirm Location
+                  </button>
+               </div>
             </div>
          </div>
-      </div>
-   );
+      );
+   };
 
    return (
       <div className="max-w-md mx-auto h-[100dvh] bg-[#fdfaf8] overflow-hidden shadow-2xl relative font-sans flex flex-col">

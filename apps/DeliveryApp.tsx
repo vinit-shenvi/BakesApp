@@ -9,6 +9,8 @@ import {
 import { useStore } from '../storeContext';
 import { OrderStatus } from '../types';
 import { Badge, Card, Button } from '../components/Shared';
+import { GoogleMap, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { MapsWrapper } from '../components/MapsWrapper';
 
 type ViewMode = 'LIST' | 'NAVIGATION';
 
@@ -20,13 +22,14 @@ export const DeliveryApp: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('LIST');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
+  // Simulation State
+  const [driverPos, setDriverPos] = useState({ lat: 12.9716, lng: 77.5946 });
+  const [deliveryPath, setDeliveryPath] = useState<google.maps.DirectionsResult | null>(null);
+
   if (!partner) return null;
 
-  // Mock data for the specific tasks seen in the video
-  const activeTasks = [
-    { id: 'ORD-8291', customerName: 'Harshita Sharma', price: 45.0, address: '24/B, Lotus Apartment, Indiranagar', dist: '2.4 km', type: 'DELIVER' },
-    { id: 'ORD-9921', customerName: 'Vinit S.', price: 85.0, address: 'Skyline Towers, MG Road', dist: '5.1 km', type: 'PICKUP' }
-  ];
+  // Real orders from context instead of mocks
+  const myTasks = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
 
   const handleNavigate = (order: any) => {
     setSelectedOrder(order);
@@ -70,7 +73,12 @@ export const DeliveryApp: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-24">
-        {activeTasks.map(order => (
+        {myTasks.length === 0 ? (
+          <div className="text-center py-20 opacity-40">
+            <Truck className="w-16 h-16 mx-auto mb-4" />
+            <p>No active tasks</p>
+          </div>
+        ) : myTasks.map(order => (
           <Card key={order.id} className="p-5 border-none shadow-sm flex flex-col gap-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -79,24 +87,44 @@ export const DeliveryApp: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-stone-800 text-lg">{order.customerName}</h3>
-                  <p className="text-stone-400 text-xs font-medium">{order.address}</p>
+                  <p className="text-stone-400 text-xs font-medium">{order.address || 'Location Verified'}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-emerald-600 font-bold text-lg">₹{order.price.toFixed(1)}</p>
-                <p className="text-stone-400 text-[10px] font-bold uppercase">{order.dist}</p>
+                <p className="text-emerald-600 font-bold text-lg">₹{order.total.toFixed(0)}</p>
+                <Badge variant={order.status === OrderStatus.NEW ? 'warning' : 'info'}>{order.status}</Badge>
               </div>
             </div>
+
+            {/* Status-based Action Buttons */}
             <div className="flex gap-3">
-              <button className="flex-1 py-3.5 rounded-2xl border border-emerald-500 text-emerald-600 font-bold text-sm hover:bg-emerald-50 transition-all">
-                Details
-              </button>
-              <button
-                onClick={() => handleNavigate(order)}
-                className="flex-1 py-3.5 rounded-2xl bg-[#3498db] text-white font-bold text-sm hover:bg-[#2980b9] transition-all shadow-md"
-              >
-                Navigate
-              </button>
+              {order.status === OrderStatus.NEW || order.status === OrderStatus.ACCEPTED ? (
+                <button
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.ACCEPTED)}
+                  className="flex-1 py-3.5 rounded-2xl bg-stone-800 text-white font-bold text-sm hover:bg-stone-900 transition-all"
+                  disabled={order.status === OrderStatus.ACCEPTED}
+                >
+                  {order.status === OrderStatus.ACCEPTED ? 'Accepted' : 'Accept Order'}
+                </button>
+              ) : null}
+
+              {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.PREPARING || order.status === OrderStatus.READY) && (
+                <button
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY)} // Simplified flow: logic implies picking up
+                  className="flex-1 py-3.5 rounded-2xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-all"
+                >
+                  Pick Up
+                </button>
+              )}
+
+              {(order.status === OrderStatus.OUT_FOR_DELIVERY || order.status === OrderStatus.PICKED_UP) && (
+                <button
+                  onClick={() => handleNavigate(order)}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#3498db] text-white font-bold text-sm hover:bg-[#2980b9] transition-all shadow-md"
+                >
+                  Navigate
+                </button>
+              )}
             </div>
           </Card>
         ))}
@@ -115,16 +143,35 @@ export const DeliveryApp: React.FC = () => {
         </button>
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center opacity-30">
-        <MapIcon className="w-20 h-20 mb-4" />
-        <p className="text-lg font-bold">Google Map Integration Mock</p>
+      <div className="flex-1 relative">
+        <MapsWrapper>
+          <GoogleMap
+            mapContainerStyle={{ width: '100%', height: '100%' }}
+            center={driverPos}
+            zoom={14}
+            options={{ disableDefaultUI: true, zoomControl: false }}
+            onLoad={() => {
+              // Simulate movement effect
+              const interval = setInterval(() => {
+                setDriverPos(prev => ({
+                  lat: prev.lat + (Math.random() - 0.5) * 0.001,
+                  lng: prev.lng + (Math.random() - 0.5) * 0.001
+                }));
+              }, 1000);
+              return () => clearInterval(interval);
+            }}
+          >
+            <Marker position={driverPos} icon={{ url: "https://maps.google.com/mapfiles/kml/shapes/truck.png", scaledSize: new google.maps.Size(30, 30) }} />
+            {deliveryPath && <DirectionsRenderer directions={deliveryPath} />}
+          </GoogleMap>
+        </MapsWrapper>
       </div>
 
-      <div className="bg-white rounded-t-[40px] p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-500">
+      <div className="bg-white rounded-t-[40px] p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-500 relative z-20 -mt-6">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h2 className="text-2xl font-bold text-stone-800">
-              {selectedOrder.type === 'PICKUP' ? 'Pick up Order' : 'Deliver Order'}
+              Delivering Order
             </h2>
             <p className="text-stone-400 text-sm font-medium mt-1">{selectedOrder.address}</p>
           </div>
@@ -138,7 +185,7 @@ export const DeliveryApp: React.FC = () => {
           className="w-full bg-[#2ecc71] text-white py-5 rounded-[24px] font-black text-lg flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all"
         >
           <CheckCircle2 className="w-6 h-6" />
-          {selectedOrder.type === 'PICKUP' ? 'Mark Picked Up' : 'Mark Delivered'}
+          Mark Delivered
         </button>
       </div>
     </div>
