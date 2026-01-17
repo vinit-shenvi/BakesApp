@@ -69,6 +69,21 @@ export interface DeliveryPartner {
   performanceScore: number;
 }
 
+export interface DeliveryTier {
+  minDistance: number;
+  maxDistance: number;
+  price: number;
+}
+
+export interface DeliverySettings {
+  id: string;
+  basePrice: number;
+  minOrderValue: number;
+  maxOrderValue: number;
+  tiers: DeliveryTier[];
+  active: boolean;
+}
+
 export enum AppRole {
   CUSTOMER = 'CUSTOMER',
   ADMIN = 'ADMIN',

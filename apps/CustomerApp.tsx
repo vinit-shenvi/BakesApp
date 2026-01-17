@@ -19,7 +19,11 @@ const STORES = [
 ];
 
 export const CustomerApp: React.FC = () => {
-   const { products, cart, wishlist, addToCart, removeFromCart, updateCartQuantity, toggleWishlist, user, orders, placeOrder } = useStore();
+   const {
+      user, products, cart, wishlist, addToCart: addToCartAction,
+      removeFromCart, updateCartQuantity, toggleWishlist, placeOrder,
+      calculateDeliveryFee
+   } = useStore();
 
    const [activeTab, setActiveTab] = useState<'home' | 'festive' | 'account'>('home');
    const [currentScreen, setCurrentScreen] = useState<'main' | 'search' | 'history' | 'wishlist' | 'checkout' | 'category'>('main');
@@ -28,6 +32,7 @@ export const CustomerApp: React.FC = () => {
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DeliveryMethod.HOME_DELIVERY);
    const [showLocationPicker, setShowLocationPicker] = useState(false);
    const [selectedStore, setSelectedStore] = useState(STORES[0]);
+   const [mapCenter, setMapCenter] = useState({ lat: 12.9716, lng: 77.5946 }); // Default center (Bangalore)
 
    const [searchQuery, setSearchQuery] = useState('');
    const [searchResult, setSearchResult] = useState<Product[]>([]);
@@ -37,8 +42,13 @@ export const CustomerApp: React.FC = () => {
    const itemsTotal = cart.reduce((sum, item) => sum + (item.price * 50 * item.quantity), 0);
    const cgst = itemsTotal * 0.025;
    const sgst = itemsTotal * 0.025;
-   const deliveryFee = deliveryMethod === DeliveryMethod.HOME_DELIVERY ? 45 : 0;
-   const grandTotal = itemsTotal > 0 ? itemsTotal + cgst + sgst + deliveryFee : 0;
+   const { fee: deliveryFee, distance: deliveryDistance } = React.useMemo(() => {
+      if (deliveryMethod === DeliveryMethod.PICKUP) return { fee: 0, distance: 0 };
+      // Use the center of the map (user's pinned location) for calculation
+      return calculateDeliveryFee(mapCenter);
+   }, [mapCenter, deliveryMethod, calculateDeliveryFee]);
+
+   const grandTotal = itemsTotal + cgst + sgst + deliveryFee;
 
    const handleSearch = (query: string) => {
       setSearchQuery(query);
@@ -70,7 +80,7 @@ export const CustomerApp: React.FC = () => {
                <div className="flex items-center justify-between">
                   <span className="font-extrabold text-stone-900 text-sm">₹{Math.round(product.price * 50)}</span>
                   {!cartItem ? (
-                     <button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className="bg-white border border-orange-500 text-orange-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">Add</button>
+                     <button onClick={(e) => { e.stopPropagation(); addToCartAction(product); }} className="bg-white border border-orange-500 text-orange-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">Add</button>
                   ) : (
                      <div onClick={(e) => e.stopPropagation()} className="flex items-center bg-orange-500 text-white rounded-full px-2 py-1 gap-2">
                         <button onClick={() => updateCartQuantity(product.id, -1)}><Minus className="w-3 h-3" /></button>
@@ -147,7 +157,7 @@ export const CustomerApp: React.FC = () => {
                         <span className="text-3xl font-black text-stone-800">₹{Math.round(selectedProduct.price * 50)}</span>
                      </div>
                      <button
-                        onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}
+                        onClick={() => { addToCartAction(selectedProduct); setSelectedProduct(null); }}
                         className="flex-1 bg-orange-600 text-white py-4 rounded-[24px] font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 hover:bg-orange-700"
                      >
                         Add to Cart <Plus className="w-5 h-5" />
@@ -450,7 +460,7 @@ export const CustomerApp: React.FC = () => {
                   <span className="font-black text-stone-800">₹{sgst.toFixed(2)}</span>
                </div>
                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-stone-500">Delivery Fee (4.5 km)</span>
+                  <span className="font-medium text-stone-500">Delivery Fee ({deliveryDistance.toFixed(1)} km)</span>
                   <span className="font-black text-orange-600">₹{deliveryFee.toFixed(2)}</span>
                </div>
                <div className="pt-4 border-t border-dashed border-stone-200 flex justify-between items-center">

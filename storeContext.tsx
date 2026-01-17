@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Order, DeliveryPartner, User, OrderStatus, DeliveryMethod, CartItem } from './types';
-import { INITIAL_PRODUCTS as PRODUCTS, INITIAL_PARTNERS as DELIVERY_PARTNERS, INITIAL_ORDERS as MOCK_ORDERS } from './constants';
+import { Product, Order, DeliveryPartner, User, OrderStatus, DeliveryMethod, CartItem, DeliverySettings } from './types';
+import { INITIAL_PRODUCTS as PRODUCTS, INITIAL_PARTNERS as DELIVERY_PARTNERS, INITIAL_ORDERS as MOCK_ORDERS, INITIAL_DELIVERY_SETTINGS } from './constants';
 
 interface StoreContextType {
   products: Product[];
@@ -17,6 +17,9 @@ interface StoreContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   assignDeliveryPartner: (orderId: string, partnerId: string) => void;
   addPartner: (partnerData: { name: string; phone: string; bloodGroup: string }) => void;
+  deliverySettings: DeliverySettings;
+  updateDeliverySettings: (settings: DeliverySettings) => void;
+  calculateDeliveryFee: (location: google.maps.LatLngLiteral) => { fee: number; distance: number };
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -28,6 +31,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [user] = useState<User>({ id: 'u1', name: 'Admin User', email: 'admin@kantibakes.com', role: 'admin' });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
+  const [deliverySettings, setDeliverySettings] = useState<DeliverySettings>(INITIAL_DELIVERY_SETTINGS);
 
   // Fetch orders on mount and poll every 2 seconds
   useEffect(() => {
@@ -121,11 +125,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setDeliveryPartners(prev => [...prev, newPartner]);
   };
 
+  const updateDeliverySettings = (settings: DeliverySettings) => {
+    setDeliverySettings(settings);
+  };
+
+  const calculateDeliveryFee = (location: google.maps.LatLngLiteral) => {
+    // Store Location (Attibele, Bangalore approx)
+    const STORE_LOC = { lat: 12.7786, lng: 77.7629 };
+
+    // Haversine Algo for Distance
+    const R = 6371; // Radius of the earth in km
+    const dLat = (location.lat - STORE_LOC.lat) * (Math.PI / 180);
+    const dLon = (location.lng - STORE_LOC.lng) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(STORE_LOC.lat * (Math.PI / 180)) * Math.cos(location.lat * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+
+    // Find Price Tier
+    const tier = deliverySettings.tiers.find(t => distance >= t.minDistance && distance < t.maxDistance);
+
+    // Default logic if outside max tier (use highest tier + base price per extra km, or just flat max)
+    // For now, if > max distance, we use the highest tier + 20 per extra km
+    let fee = 0;
+    if (tier) {
+      fee = tier.price;
+    } else if (distance >= 10) {
+      fee = 120 + Math.round((distance - 10) * 10); // Standard fallback
+    } else {
+      fee = deliverySettings.basePrice; // Min fallback
+    }
+
+    return { fee: Math.round(fee), distance: parseFloat(distance.toFixed(1)) };
+  };
+
   return (
     <StoreContext.Provider value={{
       products, orders, deliveryPartners, user, cart, wishlist,
       addToCart, removeFromCart, updateCartQuantity, toggleWishlist,
-      placeOrder, updateOrderStatus, assignDeliveryPartner, addPartner
+      placeOrder, updateOrderStatus, assignDeliveryPartner, addPartner,
+      deliverySettings, updateDeliverySettings, calculateDeliveryFee
     }}>
       {children}
     </StoreContext.Provider>

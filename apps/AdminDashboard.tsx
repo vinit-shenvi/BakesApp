@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import {
   BarChart3, LayoutDashboard, Package, ShoppingCart, Users, Truck, Settings, Plus, Search,
   MoreVertical, Filter, TrendingUp, Calendar, AlertCircle, CheckCircle2, Map as MapIcon, ChevronRight,
-  Clock, XCircle, CreditCard, Gift, MousePointer2, Bell, X, UserPlus, Phone, ShieldCheck, ArrowLeft, Activity
+  Clock, XCircle, CreditCard, Gift, MousePointer2, Bell, X, UserPlus, Phone, ShieldCheck, ArrowLeft, Activity, Trash, Edit
 } from 'lucide-react';
 import { useStore } from '../storeContext';
-import { OrderStatus, DeliveryMethod } from '../types';
+import { OrderStatus, DeliveryMethod, DeliveryTier } from '../types';
 import { Badge, Card, Button } from '../components/Shared';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -27,6 +27,8 @@ export const AdminDashboard: React.FC = () => {
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [editingTier, setEditingTier] = useState<any>(null); // For editing logic
 
   // Onboarding Form State
   const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '' });

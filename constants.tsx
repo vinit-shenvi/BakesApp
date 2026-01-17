@@ -1,5 +1,5 @@
 
-import { Product, DeliveryPartner, Order, OrderStatus, DeliveryMethod } from './types';
+import { Product, DeliveryPartner, Order, OrderStatus, DeliveryMethod, DeliverySettings } from './types';
 
 export const CATEGORIES = [
   'Best Sellers',
@@ -49,3 +49,16 @@ export const INITIAL_ORDERS: Order[] = [
     ]
   }
 ];
+
+export const INITIAL_DELIVERY_SETTINGS: DeliverySettings = {
+  id: 'ds1',
+  basePrice: 6,
+  minOrderValue: 0,
+  maxOrderValue: 5000,
+  active: true,
+  tiers: [
+    { minDistance: 0, maxDistance: 3, price: 50 },
+    { minDistance: 3, maxDistance: 7, price: 80 },
+    { minDistance: 7, maxDistance: 10, price: 120 }
+  ]
+};
