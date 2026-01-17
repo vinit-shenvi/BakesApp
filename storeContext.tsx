@@ -16,6 +16,7 @@ interface StoreContextType {
   placeOrder: (method: DeliveryMethod, location: any) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   assignDeliveryPartner: (orderId: string, partnerId: string) => void;
+  addPartner: (partnerData: { name: string; phone: string; bloodGroup: string }) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -23,7 +24,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products] = useState<Product[]>(PRODUCTS);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS); // Start with mock data for Vercel demo
-  const [deliveryPartners] = useState<DeliveryPartner[]>(DELIVERY_PARTNERS);
+  const [deliveryPartners, setDeliveryPartners] = useState<DeliveryPartner[]>(DELIVERY_PARTNERS);
   const [user] = useState<User>({ id: 'u1', name: 'Admin User', email: 'admin@kantibakes.com', role: 'admin' });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -107,11 +108,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, assignedPartnerId: partnerId, status: OrderStatus.ACCEPTED } : o));
   };
 
+  const addPartner = (partnerData: { name: string; phone: string; bloodGroup: string }) => {
+    const newPartner: DeliveryPartner = {
+      id: `p${Date.now()}`,
+      name: partnerData.name,
+      phone: partnerData.phone,
+      bloodGroup: partnerData.bloodGroup,
+      status: 'OFFLINE',
+      currentOrders: [],
+      performanceScore: 5.0 // New joiners start with perfect score
+    };
+    setDeliveryPartners(prev => [...prev, newPartner]);
+  };
+
   return (
     <StoreContext.Provider value={{
       products, orders, deliveryPartners, user, cart, wishlist,
       addToCart, removeFromCart, updateCartQuantity, toggleWishlist,
-      placeOrder, updateOrderStatus, assignDeliveryPartner
+      placeOrder, updateOrderStatus, assignDeliveryPartner, addPartner
     }}>
       {children}
     </StoreContext.Provider>

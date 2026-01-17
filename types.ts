@@ -60,6 +60,7 @@ export interface DeliveryPartner {
   name: string;
   status: 'ONLINE' | 'OFFLINE';
   phone: string;
+  bloodGroup?: string;
   currentOrders: string[];
   performanceScore: number;
 }

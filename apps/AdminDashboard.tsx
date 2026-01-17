@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
   BarChart3, LayoutDashboard, Package, ShoppingCart, Users, Truck, Settings, Plus, Search,
   MoreVertical, Filter, TrendingUp, Calendar, AlertCircle, CheckCircle2, Map as MapIcon, ChevronRight,
-  Clock, XCircle, CreditCard, Gift, MousePointer2, Bell, X, UserPlus, Phone, ShieldCheck, ArrowLeft
+  Clock, XCircle, CreditCard, Gift, MousePointer2, Bell, X, UserPlus, Phone, ShieldCheck, ArrowLeft, Activity
 } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { OrderStatus, DeliveryMethod } from '../types';
@@ -22,25 +22,25 @@ const data = [
 
 export const AdminDashboard: React.FC = () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  const { orders, products, deliveryPartners, updateOrderStatus } = useStore();
+  const { orders, products, deliveryPartners, updateOrderStatus, addPartner } = useStore();
   const [activeView, setActiveView] = useState<'overview' | 'orders' | 'products' | 'delivery' | 'festivals' | 'customers' | 'settings'>('overview');
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Onboarding Form State
-  const [newRider, setNewRider] = useState({ name: '', phone: '' });
+  const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '' });
 
   const filteredOrders = orderFilter === 'ALL' ? (orders || []) : (orders || []).filter(o => o.status === orderFilter);
 
   const handleOnboard = (e: React.FormEvent) => {
     e.preventDefault();
-    /* 
-    if (newRider.name && newRider.phone) {
-      // Feature temporarily disabled
-      setNewRider({ name: '', phone: '' });
+    if (newRider.name && newRider.phone && newRider.bloodGroup) {
+      addPartner(newRider);
+      setNewRider({ name: '', phone: '', bloodGroup: '' });
       setShowOnboarding(false);
-    } 
-    */
+      // In a real app we'd show a toast here
+      alert(`Rider ${newRider.name} onboarded successfully!`);
+    }
   };
 
   const SidebarItem = ({ icon: Icon, label, id }: any) => (
@@ -427,7 +427,10 @@ export const AdminDashboard: React.FC = () => {
                     <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${p.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-stone-400'}`}></div>
                   </div>
                   <div>
-                    <p className="font-bold text-sm">{p.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm">{p.name}</p>
+                      {p.bloodGroup && <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-1 rounded">{p.bloodGroup}</span>}
+                    </div>
                     <p className="text-xs text-stone-500">{p.phone}</p>
                   </div>
                 </div>
@@ -594,6 +597,23 @@ export const AdminDashboard: React.FC = () => {
                     value={newRider.phone}
                     onChange={(e) => setNewRider(prev => ({ ...prev, phone: e.target.value }))}
                   />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2 block">Blood Group</label>
+                <div className="relative">
+                  <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <select
+                    required
+                    className="w-full pl-11 pr-4 py-3 bg-stone-50 rounded-xl border focus:ring-2 focus:ring-amber-200 focus:border-amber-600 outline-none transition-all appearance-none"
+                    value={newRider.bloodGroup}
+                    onChange={(e) => setNewRider(prev => ({ ...prev, bloodGroup: e.target.value }))}
+                  >
+                    <option value="" disabled>Select Blood Group</option>
+                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-start gap-3">
