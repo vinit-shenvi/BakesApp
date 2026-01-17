@@ -1,0 +1,8 @@
+
+{
+  "name": "Bakes & Flakes Ecosystem",
+  "description": "A comprehensive bakery commerce platform including Customer App, Admin Dashboard, and Delivery Partner App.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

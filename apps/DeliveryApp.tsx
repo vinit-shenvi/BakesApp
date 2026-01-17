@@ -1,0 +1,299 @@
+
+import React, { useState } from 'react';
+import {
+  Truck, CheckCircle2, Navigation, Phone, Wallet, Clock, MapPin,
+  User as UserIcon, LogOut, ChevronRight, Activity, ArrowLeft, Package, Map as MapIcon, Power,
+  // Added Home icon import
+  Home
+} from 'lucide-react';
+import { useStore } from '../storeContext';
+import { OrderStatus } from '../types';
+import { Badge, Card, Button } from '../components/Shared';
+
+type ViewMode = 'LIST' | 'NAVIGATION';
+
+export const DeliveryApp: React.FC = () => {
+  const { partners, orders, togglePartnerStatus, updateOrderStatus } = useStore();
+  const [partnerId] = useState('p1');
+  const partner = partners.find(p => p.id === partnerId);
+  const [activeTab, setActiveTab] = useState<'home' | 'earnings' | 'profile'>('home');
+  const [viewMode, setViewMode] = useState<ViewMode>('LIST');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+  if (!partner) return null;
+
+  // Mock data for the specific tasks seen in the video
+  const activeTasks = [
+    { id: 'ORD-8291', customerName: 'Harshita Sharma', price: 45.0, address: '24/B, Lotus Apartment, Indiranagar', dist: '2.4 km', type: 'DELIVER' },
+    { id: 'ORD-9921', customerName: 'Vinit S.', price: 85.0, address: 'Skyline Towers, MG Road', dist: '5.1 km', type: 'PICKUP' }
+  ];
+
+  const handleNavigate = (order: any) => {
+    setSelectedOrder(order);
+    setViewMode('NAVIGATION');
+  };
+
+  const handleAction = () => {
+    if (selectedOrder.type === 'PICKUP') {
+      // Logic for picked up
+      updateOrderStatus(selectedOrder.id, OrderStatus.OUT_FOR_DELIVERY, partnerId);
+    } else {
+      // Logic for delivered
+      updateOrderStatus(selectedOrder.id, OrderStatus.DELIVERED, partnerId);
+    }
+    setViewMode('LIST');
+    setSelectedOrder(null);
+  };
+
+  const renderHome = () => (
+    <div className="flex flex-col h-full bg-[#f9f9f9]">
+      <header className="px-6 pt-12 pb-6 bg-white flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-stone-900">Kanti Delivery</h1>
+        <button
+          onClick={() => togglePartnerStatus(partnerId)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${partner.status === 'ONLINE' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-stone-50 border-stone-200 text-stone-400'}`}
+        >
+          <Power className="w-4 h-4" />
+          <span className="text-xs font-bold">{partner.status === 'ONLINE' ? 'Online' : 'Offline'}</span>
+        </button>
+      </header>
+
+      <div className="px-6 py-4 grid grid-cols-2 gap-4">
+        <div className="bg-black rounded-2xl p-6 text-center shadow-lg">
+          <p className="text-4xl font-bold text-white mb-1">0</p>
+          <p className="text-stone-400 text-xs font-bold">New Orders</p>
+        </div>
+        <div className="bg-stone-100 rounded-2xl p-6 text-center border border-stone-200">
+          <p className="text-4xl font-bold text-stone-800 mb-1">2</p>
+          <p className="text-stone-500 text-xs font-bold">Active</p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-24">
+        {activeTasks.map(order => (
+          <Card key={order.id} className="p-5 border-none shadow-sm flex flex-col gap-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-800 text-lg">{order.customerName}</h3>
+                  <p className="text-stone-400 text-xs font-medium">{order.address}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-emerald-600 font-bold text-lg">₹{order.price.toFixed(1)}</p>
+                <p className="text-stone-400 text-[10px] font-bold uppercase">{order.dist}</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button className="flex-1 py-3.5 rounded-2xl border border-emerald-500 text-emerald-600 font-bold text-sm hover:bg-emerald-50 transition-all">
+                Details
+              </button>
+              <button
+                onClick={() => handleNavigate(order)}
+                className="flex-1 py-3.5 rounded-2xl bg-[#3498db] text-white font-bold text-sm hover:bg-[#2980b9] transition-all shadow-md"
+              >
+                Navigate
+              </button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderNavigation = () => (
+    <div className="h-full bg-stone-100 flex flex-col relative">
+      <header className="absolute top-12 left-6 z-10">
+        <button
+          onClick={() => setViewMode('LIST')}
+          className="p-3 bg-white rounded-full shadow-xl hover:bg-stone-50 transition-all"
+        >
+          <ArrowLeft className="w-6 h-6 text-stone-800" />
+        </button>
+      </header>
+
+      <div className="flex-1 flex flex-col items-center justify-center opacity-30">
+        <MapIcon className="w-20 h-20 mb-4" />
+        <p className="text-lg font-bold">Google Map Integration Mock</p>
+      </div>
+
+      <div className="bg-white rounded-t-[40px] p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-500">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-stone-800">
+              {selectedOrder.type === 'PICKUP' ? 'Pick up Order' : 'Deliver Order'}
+            </h2>
+            <p className="text-stone-400 text-sm font-medium mt-1">{selectedOrder.address}</p>
+          </div>
+          <div className="bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-black">
+            #{selectedOrder.id}
+          </div>
+        </div>
+
+        <button
+          onClick={handleAction}
+          className="w-full bg-[#2ecc71] text-white py-5 rounded-[24px] font-black text-lg flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all"
+        >
+          <CheckCircle2 className="w-6 h-6" />
+          {selectedOrder.type === 'PICKUP' ? 'Mark Picked Up' : 'Mark Delivered'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderEarnings = () => (
+    <div className="flex flex-col h-full bg-[#f9f9f9] animate-in slide-in-from-right duration-300">
+      <header className="px-6 pt-12 pb-6 bg-white flex justify-between items-end border-b border-stone-100">
+        <div>
+          <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Total Earnings</p>
+          <h1 className="text-4xl font-black text-stone-900 mt-1">₹4,250<span className="text-lg text-stone-400">.50</span></h1>
+        </div>
+        <div className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-xs font-black uppercase">
+          +12% vs last week
+        </div>
+      </header>
+
+      <div className="p-6 overflow-y-auto pb-24">
+        <div className="flex gap-4 overflow-x-auto no-scrollbar mb-8 snap-x">
+          {[
+            { label: 'Today', value: '₹850', active: true },
+            { label: 'Yesterday', value: '₹1,200', active: false },
+            { label: 'This Week', value: '₹8,400', active: false }
+          ].map((stat, i) => (
+            <div key={i} className={`min-w-[120px] p-4 rounded-[24px] border snap-center ${stat.active ? 'bg-stone-800 text-white border-stone-800 shadow-xl' : 'bg-white text-stone-400 border-stone-200'}`}>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2">{stat.label}</p>
+              <p className="text-xl font-bold">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <h3 className="text-lg font-bold text-stone-800 mb-4">Recent Payouts</h3>
+        <div className="space-y-4">
+          {[
+            { id: 'TXN-9821', date: 'Today, 2:30 PM', amount: 45.0, type: 'Delivery Fee' },
+            { id: 'TXN-9820', date: 'Today, 1:15 PM', amount: 85.0, type: 'Delivery Fee + Tip' },
+            { id: 'TXN-9819', date: 'Yesterday', amount: 1200.0, type: 'Weekly Settlement' }
+          ].map(txn => (
+            <div key={txn.id} className="bg-white p-5 rounded-[24px] flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-stone-800 text-sm">{txn.type}</p>
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{txn.date}</p>
+                </div>
+              </div>
+              <span className={`font-black ${txn.amount > 1000 ? 'text-stone-800' : 'text-emerald-600'}`}>
+                {txn.amount > 1000 ? '-' : '+'}₹{txn.amount}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderProfile = () => (
+    <div className="flex flex-col h-full bg-[#f9f9f9] animate-in slide-in-from-right duration-300">
+      <header className="pt-12 pb-8 bg-white text-center rounded-b-[40px] shadow-sm relative z-10">
+        <div className="w-24 h-24 bg-stone-100 rounded-full mx-auto mb-4 border-4 border-white shadow-xl overflow-hidden">
+          <img src="https://picsum.photos/seed/rider/200" className="w-full h-full object-cover" />
+        </div>
+        <h2 className="text-2xl font-black text-stone-800">{partner.name}</h2>
+        <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mt-1">ID: {partner.id} • {partner.phone}</p>
+        <div className="flex justify-center gap-2 mt-6">
+          <div className="px-4 py-2 bg-stone-50 rounded-xl">
+            <p className="text-[10px] font-black text-stone-400 uppercase">Rating</p>
+            <div className="flex items-center gap-1">
+              <span className="font-bold text-stone-800">4.8</span>
+              <Activity className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+            </div>
+          </div>
+          <div className="px-4 py-2 bg-stone-50 rounded-xl">
+            <p className="text-[10px] font-black text-stone-400 uppercase">Deliveries</p>
+            <span className="font-bold text-stone-800">1,240</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="p-6 flex-1 overflow-y-auto pb-24 space-y-4">
+        <div className="bg-orange-500 text-white p-6 rounded-[32px] relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Achievement Unlocked</p>
+            <h3 className="text-2xl font-black italic">Speed Racer</h3>
+            <p className="text-xs font-medium mt-1 opacity-90">Completed 50 deliveries under 20 mins this month!</p>
+          </div>
+          <Activity className="absolute -bottom-4 -right-4 w-32 h-32 text-orange-400 opacity-50" />
+        </div>
+
+        <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest pl-2">Settings</p>
+        {[
+          { label: 'Vehicle Details', val: 'Splendor Plus • KA 01 EQ 1234', icon: Truck },
+          { label: 'Shift Schedule', val: '10:00 AM - 08:00 PM', icon: Clock },
+          { label: 'Preferences', val: 'Vegetarian Orders Only', icon: CheckCircle2 }
+        ].map((item, i) => (
+          <div key={i} className="bg-white p-4 rounded-[24px] flex items-center gap-4 border border-stone-100">
+            <div className="w-10 h-10 bg-stone-50 rounded-2xl flex items-center justify-center text-stone-400">
+              <item.icon className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-stone-800 text-sm">{item.label}</p>
+              <p className="text-[10px] font-bold text-stone-400 uppercase mt-0.5">{item.val}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-stone-300" />
+          </div>
+        ))}
+
+        <button className="w-full py-4 mt-8 text-rose-500 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+          <LogOut className="w-4 h-4" /> Sign Out
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-md mx-auto h-[100dvh] bg-white overflow-hidden shadow-2xl flex flex-col">
+      <div className="flex-1 relative overflow-hidden">
+        {viewMode === 'LIST' ? (
+          <>
+            {activeTab === 'home' && renderHome()}
+            {activeTab === 'earnings' && renderEarnings()}
+            {activeTab === 'profile' && renderProfile()}
+          </>
+        ) : (
+          renderNavigation()
+        )}
+      </div>
+
+      {viewMode === 'LIST' && (
+        <nav className="h-20 bg-white border-t border-stone-100 flex justify-around items-center px-4">
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' ? 'text-emerald-600' : 'text-stone-300'}`}
+          >
+            <Home className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Home</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('earnings')}
+            className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'earnings' ? 'text-emerald-600' : 'text-stone-300'}`}
+          >
+            <Wallet className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Earnings</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'profile' ? 'text-emerald-600' : 'text-stone-300'}`}
+          >
+            <UserIcon className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Profile</span>
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+};
