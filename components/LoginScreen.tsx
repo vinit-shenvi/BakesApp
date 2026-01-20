@@ -9,7 +9,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ targetRole, onBack }) => {
-    const { login, register } = useStore();
+    const { login, register, deliveryPartners } = useStore();
     const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up (only for customer)
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -22,12 +22,43 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ targetRole, onBack }) 
     // Base role state (legacy compat)
     const [role, setRole] = useState<'admin' | 'customer' | 'delivery'>(targetRole || 'customer');
 
+    // OTP State
+    const [phone, setPhone] = useState('');
+    const [otp, setOtp] = useState('');
+    const [showOtpInput, setShowOtpInput] = useState(false);
+
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (role === 'customer' && !isLogin) {
-            // Register flow
-            register(name, email, 'customer');
+        if (role === 'customer') {
+            if (!showOtpInput) {
+                if (phone.length < 10) {
+                    alert("Please enter a valid phone number");
+                    return;
+                }
+                // Simulate sending OTP
+                setShowOtpInput(true);
+                alert(`OTP sent to ${phone}. Use 1234 to login.`);
+            } else {
+                // Verify OTP
+                if (otp === '1234') {
+                    login(phone, 'customer');
+                } else {
+                    alert('Invalid OTP');
+                }
+            }
+            return;
+        }
+
+        if (role === 'delivery') {
+            // Validate credentials against deliveryPartners
+            const partner = deliveryPartners.find(p => p.email === email && p.password === password);
+
+            if (partner) {
+                login(email, 'delivery');
+            } else {
+                alert('Invalid Email or Password');
+            }
             return;
         }
 
@@ -53,7 +84,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ targetRole, onBack }) 
                         <h1 className="text-4xl">🥐</h1>
                     </div>
                     <h2 className="text-3xl font-black text-stone-800 uppercase tracking-tighter">
-                        {isLogin ? 'Welcome Back' : 'Join the Family'}
+                        {role === 'customer' ? 'Welcome' : 'Welcome Back'}
                     </h2>
                     <p className="text-stone-400 font-bold text-xs uppercase tracking-widest mt-2">{targetRole ? `${targetRole} Portal` : 'Select Portal'}</p>
                 </div>
@@ -76,59 +107,72 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ targetRole, onBack }) 
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Sign Up Name Field */}
-                    {role === 'customer' && !isLogin && (
-                        <div className="relative animate-in slide-in-from-top-2">
-                            <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
-                            <input
-                                type="text"
-                                placeholder="Full Name"
-                                className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                            />
-                        </div>
-                    )}
 
-                    <div className="relative">
-                        <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
-                        <input
-                            type="email"
-                            placeholder="Email Address"
-                            className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="relative">
-                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
-                        <input
-                            type="password"
-                            placeholder="Password"
-                            className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
+                    {role === 'customer' ? (
+                        <>
+                            {!showOtpInput ? (
+                                <div className="relative animate-in slide-in-from-right">
+                                    <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                                    <input
+                                        type="tel"
+                                        placeholder="Mobile Number"
+                                        className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all font-mono tracking-widest"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        required
+                                        autoFocus
+                                    />
+                                </div>
+                            ) : (
+                                <div className="relative animate-in slide-in-from-right">
+                                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Enter OTP (1234)"
+                                        className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all font-mono tracking-[0.5em] text-center text-lg"
+                                        value={otp}
+                                        onChange={(e) => setOtp(e.target.value)}
+                                        required
+                                        maxLength={4}
+                                        autoFocus
+                                    />
+                                    <p className="text-center text-xs font-bold text-stone-400 mt-2">Sent to {phone}</p>
+                                </div>
+                            )}
 
-                    <button className="w-full bg-stone-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-stone-800 active:scale-95 transition-all shadow-xl mt-4">
-                        {role === 'customer' && !isLogin ? 'Create Account' : `Login to ${role === 'admin' ? (adminRole === 'super_admin' ? 'Head Office' : 'Store') : (targetRole || role)}`}
-                    </button>
-
-                    {/* Sign Up Toggle Link */}
-                    {role === 'customer' && (
-                        <div className="text-center pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsLogin(!isLogin)}
-                                className="text-xs font-bold text-stone-400 hover:text-orange-600 transition-colors uppercase tracking-widest"
-                            >
-                                {isLogin ? 'New to Kanti? Create Account' : 'Already have an account? Login'}
+                            <button className="w-full bg-stone-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-stone-800 active:scale-95 transition-all shadow-xl mt-4">
+                                {showOtpInput ? 'Verify & Login' : 'Send OTP'}
                             </button>
-                        </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="relative">
+                                <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                                <input
+                                    type="email"
+                                    placeholder="Email Address"
+                                    className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="relative">
+                                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                                <input
+                                    type="password"
+                                    placeholder="Password"
+                                    className="w-full bg-stone-50 border border-stone-100 rounded-2xl py-4 pl-14 pr-4 font-bold text-stone-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+
+                            <button className="w-full bg-stone-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-stone-800 active:scale-95 transition-all shadow-xl mt-4">
+                                {`Login to ${role === 'admin' ? (adminRole === 'super_admin' ? 'Head Office' : 'Store') : (targetRole || role)}`}
+                            </button>
+                        </>
                     )}
                 </form>
 

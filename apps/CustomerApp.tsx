@@ -44,6 +44,9 @@ export const CustomerApp: React.FC = () => {
    const [searchQuery, setSearchQuery] = useState('');
    const [searchResult, setSearchResult] = useState<Product[]>([]);
 
+   // Order Details
+   const [receiverDetails, setReceiverDetails] = useState({ name: '', phone: '' });
+
    // Derived Values
    const itemsTotal = cart.reduce((sum, item) => sum + (item.price * 50 * item.quantity), 0);
    const cgst = itemsTotal * 0.025;
@@ -340,7 +343,7 @@ export const CustomerApp: React.FC = () => {
          <div className="px-8 space-y-3">
             {[
                { id: 'history', label: 'My Orders', sub: '2 HISTORICAL ORDERS', icon: ShoppingCart, color: 'text-orange-600' },
-               { id: 'wishlist', label: 'Wishlist', sub: '0 SAVED ITEMS', icon: Heart, color: 'text-rose-500' },
+               { id: 'wishlist', label: 'Wishlist', sub: `${wishlist.length} SAVED ITEMS`, icon: Heart, color: 'text-rose-500' },
                { id: 'addresses', label: 'Saved Addresses', sub: '2 ADDRESSES', icon: MapPin, color: 'text-stone-400' },
                { id: 'payment', label: 'Payment Methods', sub: 'VISA •••• 4242', icon: Wallet, color: 'text-stone-400' },
                { id: 'settings', label: 'Settings', sub: 'PRIVACY & SECURITY', icon: Settings, color: 'text-stone-400' },
@@ -536,6 +539,30 @@ export const CustomerApp: React.FC = () => {
                ))}
             </div>
 
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-6">Receiver Details</p>
+            <div className="space-y-4 mb-12">
+               <div>
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1 block">Name</label>
+                  <input
+                     type="text"
+                     placeholder="Receiver's Name"
+                     className="w-full bg-stone-50 border border-stone-100 rounded-xl px-4 py-3 text-sm font-bold text-stone-800 outline-none focus:ring-2 focus:ring-orange-200"
+                     value={receiverDetails.name}
+                     onChange={(e) => setReceiverDetails({ ...receiverDetails, name: e.target.value })}
+                  />
+               </div>
+               <div>
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-1 block">Phone Number</label>
+                  <input
+                     type="tel"
+                     placeholder="Receiver's Contact"
+                     className="w-full bg-stone-50 border border-stone-100 rounded-xl px-4 py-3 text-sm font-bold text-stone-800 outline-none focus:ring-2 focus:ring-orange-200"
+                     value={receiverDetails.phone}
+                     onChange={(e) => setReceiverDetails({ ...receiverDetails, phone: e.target.value })}
+                  />
+               </div>
+            </div>
+
             <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-6">Bill Details</p>
             <div className="space-y-3 bg-stone-50/50 p-6 rounded-[32px] border border-stone-100 mb-10">
                <div className="flex justify-between text-sm">
@@ -568,7 +595,7 @@ export const CustomerApp: React.FC = () => {
          </div>
          <div className="p-6 bg-white border-t border-stone-50 sticky bottom-0">
             <button
-               onClick={() => { placeOrder(deliveryMethod, {}); setCurrentScreen('history'); }}
+               onClick={() => { placeOrder(deliveryMethod, {}, receiverDetails); setCurrentScreen('history'); }}
                className="w-full bg-orange-700 text-white py-5 rounded-[28px] font-black text-base uppercase tracking-widest shadow-xl active:scale-95 transition-all"
             >
                Confirm & Pay ₹{grandTotal.toFixed(0)}

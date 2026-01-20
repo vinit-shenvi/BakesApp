@@ -23,8 +23,8 @@ export const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export const INITIAL_PARTNERS: DeliveryPartner[] = [
-  { id: 'p1', name: 'Rahul Kumar', status: 'ONLINE', phone: '+91 9876543210', currentOrders: [], performanceScore: 4.8 },
-  { id: 'p2', name: 'Amit Singh', status: 'OFFLINE', phone: '+91 9123456789', currentOrders: [], performanceScore: 4.5 }
+  { id: 'p1', name: 'Rahul Kumar', status: 'ONLINE', phone: '+91 9876543210', email: 'rahul@kantibakes.com', password: 'password123', currentOrders: [], performanceScore: 4.8 },
+  { id: 'p2', name: 'Amit Singh', status: 'OFFLINE', phone: '+91 9123456789', email: 'amit@kantibakes.com', password: 'password123', currentOrders: [], performanceScore: 4.5 }
 ];
 
 export const INITIAL_ORDERS: Order[] = [

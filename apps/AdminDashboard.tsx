@@ -57,7 +57,7 @@ export const AdminDashboard: React.FC = () => {
   });
 
   // Onboarding Form State
-  const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '' });
+  const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '', email: '', password: '' });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const filteredOrders = orderFilter === 'ALL' ? (orders || []) : (orders || []).filter(o => o.status === orderFilter);
@@ -817,6 +817,26 @@ export const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
+
+  const handleOnboard = (e: React.FormEvent) => {
+    e.preventDefault();
+    addPartner(newRider);
+    setNewRider({ name: '', phone: '', bloodGroup: '', email: '', password: '' });
+    setShowOnboarding(false);
+  };
+
+  const handleAddProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newProduct.name && newProduct.price) {
+      addProduct({ ...newProduct, id: `prod_${Date.now()}` } as Product);
+      setShowProductModal(false);
+      setNewProduct({ name: '', category: 'Fresh Sweets', price: 0, image: 'https://picsum.photos/seed/new/400/300', inStock: true, description: '' });
+    }
+  };
+
+  const exportCustomersCSV = () => {
+    alert("Exporting CSV...");
+  };
 
   return (
     <div className="flex h-screen bg-stone-50 overflow-hidden relative font-sans">

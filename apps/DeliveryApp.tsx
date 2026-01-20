@@ -15,21 +15,38 @@ import { MapsWrapper } from '../components/MapsWrapper';
 type ViewMode = 'LIST' | 'NAVIGATION';
 
 export const DeliveryApp: React.FC = () => {
-  const { deliveryPartners: partners, orders, togglePartnerStatus, updateOrderStatus, logout } = useStore();
-  const [partnerId] = useState('p1');
-  const partner = partners.find(p => p.id === partnerId);
+  const { user, deliveryPartners: partners, orders, togglePartnerStatus, updateOrderStatus, logout } = useStore();
+
+  // Use logged-in user ID to identify the partner
+  const partner = partners.find(p => p.id === user.id);
+
   const [activeTab, setActiveTab] = useState<'home' | 'earnings' | 'profile'>('home');
   const [viewMode, setViewMode] = useState<ViewMode>('LIST');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [filter, setFilter] = useState<'ALL' | 'NEW' | 'ACTIVE'>('ALL');
 
   // Simulation State
   const [driverPos, setDriverPos] = useState({ lat: 12.9716, lng: 77.5946 });
   const [deliveryPath, setDeliveryPath] = useState<google.maps.DirectionsResult | null>(null);
 
-  if (!partner) return null;
+  if (!partner) return <div className="flex h-screen items-center justify-center">Loading Profile...</div>;
 
-  // Real orders from context instead of mocks
-  const myTasks = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
+  // Filter orders: NEW (available to all) OR Assigned to Me (Active)
+  // And ensure they are not delivered/cancelled
+  const availableOrders = orders.filter(o =>
+    (o.status === OrderStatus.NEW) ||
+    (o.assignedPartnerId === partner.id && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED)
+  );
+
+  const newOrdersCount = availableOrders.filter(t => t.status === OrderStatus.NEW).length;
+  const activeOrdersCount = availableOrders.filter(t => t.status !== OrderStatus.NEW).length;
+
+  // Apply visual filter
+  const displayedTasks = availableOrders.filter(order => {
+    if (filter === 'NEW') return order.status === OrderStatus.NEW;
+    if (filter === 'ACTIVE') return order.status !== OrderStatus.NEW;
+    return true;
+  });
 
   const handleNavigate = (order: any) => {
     setSelectedOrder(order);
@@ -39,10 +56,10 @@ export const DeliveryApp: React.FC = () => {
   const handleAction = () => {
     if (selectedOrder.type === 'PICKUP') {
       // Logic for picked up
-      updateOrderStatus(selectedOrder.id, OrderStatus.OUT_FOR_DELIVERY, partnerId);
+      updateOrderStatus(selectedOrder.id, OrderStatus.OUT_FOR_DELIVERY, partner.id);
     } else {
       // Logic for delivered
-      updateOrderStatus(selectedOrder.id, OrderStatus.DELIVERED, partnerId);
+      updateOrderStatus(selectedOrder.id, OrderStatus.DELIVERED, partner.id);
     }
     setViewMode('LIST');
     setSelectedOrder(null);
@@ -53,7 +70,7 @@ export const DeliveryApp: React.FC = () => {
       <header className="px-6 pt-12 pb-6 bg-white flex justify-between items-center">
         <h1 className="text-2xl font-bold text-stone-900">Kanti Delivery</h1>
         <button
-          onClick={() => togglePartnerStatus(partnerId)}
+          onClick={() => togglePartnerStatus(partner.id)}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${partner.status === 'ONLINE' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-stone-50 border-stone-200 text-stone-400'}`}
         >
           <Power className="w-4 h-4" />
@@ -62,23 +79,37 @@ export const DeliveryApp: React.FC = () => {
       </header>
 
       <div className="px-6 py-4 grid grid-cols-2 gap-4">
-        <div className="bg-black rounded-2xl p-6 text-center shadow-lg">
-          <p className="text-4xl font-bold text-white mb-1">{myTasks.filter(t => t.status === OrderStatus.NEW).length}</p>
-          <p className="text-stone-400 text-xs font-bold">New Orders</p>
-        </div>
-        <div className="bg-stone-100 rounded-2xl p-6 text-center border border-stone-200">
-          <p className="text-4xl font-bold text-stone-800 mb-1">{myTasks.filter(t => t.status !== OrderStatus.NEW).length}</p>
-          <p className="text-stone-500 text-xs font-bold">Active</p>
-        </div>
+        <button
+          onClick={() => setFilter(filter === 'NEW' ? 'ALL' : 'NEW')}
+          className={`rounded-2xl p-6 text-center shadow-lg transition-all ${filter === 'NEW' ? 'bg-stone-900 ring-2 ring-amber-500' : 'bg-black'} active:scale-95`}
+        >
+          <p className="text-4xl font-bold text-white mb-1">{newOrdersCount}</p>
+          <p className={`text-xs font-bold ${filter === 'NEW' ? 'text-amber-500' : 'text-stone-400'}`}>New Orders</p>
+        </button>
+        <button
+          onClick={() => setFilter(filter === 'ACTIVE' ? 'ALL' : 'ACTIVE')}
+          className={`rounded-2xl p-6 text-center border transition-all ${filter === 'ACTIVE' ? 'bg-amber-100 border-amber-500 ring-2 ring-amber-500' : 'bg-stone-100 border-stone-200'} active:scale-95`}
+        >
+          <p className={`text-4xl font-bold mb-1 ${filter === 'ACTIVE' ? 'text-amber-800' : 'text-stone-800'}`}>{activeOrdersCount}</p>
+          <p className={`text-xs font-bold ${filter === 'ACTIVE' ? 'text-amber-700' : 'text-stone-500'}`}>Active</p>
+        </button>
       </div>
 
+      {filter !== 'ALL' && (
+        <div className="px-6 pb-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
+            Showing {filter === 'NEW' ? 'New Requests' : 'Active Deliveries'}
+          </p>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-24">
-        {myTasks.length === 0 ? (
+        {displayedTasks.length === 0 ? (
           <div className="text-center py-20 opacity-40">
             <Truck className="w-16 h-16 mx-auto mb-4" />
-            <p>No active tasks</p>
+            <p>No {filter === 'ALL' ? 'tasks' : filter.toLowerCase() + ' tasks'} found</p>
           </div>
-        ) : myTasks.map(order => (
+        ) : displayedTasks.map(order => (
           <Card key={order.id} className="p-5 border-none shadow-sm flex flex-col gap-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -98,19 +129,18 @@ export const DeliveryApp: React.FC = () => {
 
             {/* Status-based Action Buttons */}
             <div className="flex gap-3">
-              {order.status === OrderStatus.NEW || order.status === OrderStatus.ACCEPTED ? (
+              {order.status === OrderStatus.NEW ? (
                 <button
                   onClick={() => updateOrderStatus(order.id, OrderStatus.ACCEPTED)}
                   className="flex-1 py-3.5 rounded-2xl bg-stone-800 text-white font-bold text-sm hover:bg-stone-900 transition-all"
-                  disabled={order.status === OrderStatus.ACCEPTED}
                 >
-                  {order.status === OrderStatus.ACCEPTED ? 'Accepted' : 'Accept Order'}
+                  Accept Order
                 </button>
               ) : null}
 
               {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.PREPARING || order.status === OrderStatus.READY) && (
                 <button
-                  onClick={() => updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY)} // Simplified flow: logic implies picking up
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY)}
                   className="flex-1 py-3.5 rounded-2xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-all"
                 >
                   Pick Up

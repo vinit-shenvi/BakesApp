@@ -13,10 +13,10 @@ interface StoreContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, delta: number) => void;
   toggleWishlist: (productId: string) => void;
-  placeOrder: (method: DeliveryMethod, location: any) => void;
+  placeOrder: (method: DeliveryMethod, location: any, receiverDetails?: { name: string; phone: string }) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   assignDeliveryPartner: (orderId: string, partnerId: string) => void;
-  addPartner: (partnerData: { name: string; phone: string; bloodGroup: string }) => void;
+  addPartner: (partnerData: { name: string; phone: string; bloodGroup: string; email?: string; password?: string }) => void;
   deliverySettings: DeliverySettings;
   updateDeliverySettings: (settings: DeliverySettings) => void;
   calculateDeliveryFee: (location: google.maps.LatLngLiteral) => { fee: number; distance: number };
@@ -53,7 +53,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (role === 'outlet_admin') setUser({ ...user, role: 'outlet_admin', name: 'Outlet Manager (HSR)', storeId: 's1' }); // Defaulting to HSR store
     if (role === 'admin') setUser({ ...user, role: 'admin', name: 'Admin User' }); // Fallback
     if (role === 'customer') setUser({ ...user, role: 'customer', name: 'Harshita Sharma' });
-    if (role === 'delivery') setUser({ ...user, role: 'delivery', name: 'Rahul Kumar' });
+    if (role === 'delivery') {
+      const partner = deliveryPartners.find(p => p.email === email);
+      setUser({ ...user, role: 'delivery', name: partner ? partner.name : 'Unknown Driver', id: partner ? partner.id : 'u_driver' });
+    }
   };
 
   const register = (name: string, email: string, role: 'customer') => {
@@ -114,7 +117,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setWishlist(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
   };
 
-  const placeOrder = async (method: DeliveryMethod, location: any) => {
+  const placeOrder = async (method: DeliveryMethod, location: any, receiverDetails?: { name: string; phone: string }) => {
+    // Basic Mock Implementation
+    const newOrder: Order = {
+      id: `ord_${Date.now()}`,
+      customerName: user.name,
+      customerPhone: user.email === 'harshita@example.com' ? '+91 98765 43210' : 'Unknown', // Mock
+      address: location?.address || 'Saved Location',
+      receiverName: receiverDetails?.name,
+      receiverPhone: receiverDetails?.phone,
+      items: [...cart],
+      total: cart.reduce((acc, item) => acc + item.price * item.quantity, 0), // Simplified total
+      status: OrderStatus.NEW,
+      method: method,
+      timestamp: new Date().toISOString(),
+      paymentStatus: 'PAID',
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
     setCart([]);
   };
 
@@ -126,12 +146,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, assignedPartnerId: partnerId, status: OrderStatus.ACCEPTED } : o));
   };
 
-  const addPartner = (partnerData: { name: string; phone: string; bloodGroup: string }) => {
+  const addPartner = (partnerData: { name: string; phone: string; bloodGroup: string; email?: string; password?: string }) => {
     const newPartner: DeliveryPartner = {
       id: `p${Date.now()}`,
       name: partnerData.name,
       phone: partnerData.phone,
       bloodGroup: partnerData.bloodGroup,
+      email: partnerData.email,
+      password: partnerData.password,
       status: 'OFFLINE',
       currentOrders: [],
       performanceScore: 5.0

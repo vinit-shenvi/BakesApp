@@ -37,6 +37,8 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   address?: string;
+  receiverName?: string; // New: Receiver Details for delivery
+  receiverPhone?: string; // New: Receiver Details for delivery
   items: CartItem[];
   total: number;
   status: OrderStatus;
@@ -64,6 +66,8 @@ export interface User {
 export interface DeliveryPartner {
   id: string;
   name: string;
+  email?: string; // New: Login Credential
+  password?: string; // New: Login Credential
   status: 'ONLINE' | 'OFFLINE';
   phone: string;
   bloodGroup?: string;
