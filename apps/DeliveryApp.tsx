@@ -15,7 +15,7 @@ import { MapsWrapper } from '../components/MapsWrapper';
 type ViewMode = 'LIST' | 'NAVIGATION';
 
 export const DeliveryApp: React.FC = () => {
-  const { deliveryPartners: partners, orders, togglePartnerStatus, updateOrderStatus } = useStore();
+  const { deliveryPartners: partners, orders, togglePartnerStatus, updateOrderStatus, logout } = useStore();
   const [partnerId] = useState('p1');
   const partner = partners.find(p => p.id === partnerId);
   const [activeTab, setActiveTab] = useState<'home' | 'earnings' | 'profile'>('home');
@@ -63,11 +63,11 @@ export const DeliveryApp: React.FC = () => {
 
       <div className="px-6 py-4 grid grid-cols-2 gap-4">
         <div className="bg-black rounded-2xl p-6 text-center shadow-lg">
-          <p className="text-4xl font-bold text-white mb-1">0</p>
+          <p className="text-4xl font-bold text-white mb-1">{myTasks.filter(t => t.status === OrderStatus.NEW).length}</p>
           <p className="text-stone-400 text-xs font-bold">New Orders</p>
         </div>
         <div className="bg-stone-100 rounded-2xl p-6 text-center border border-stone-200">
-          <p className="text-4xl font-bold text-stone-800 mb-1">2</p>
+          <p className="text-4xl font-bold text-stone-800 mb-1">{myTasks.filter(t => t.status !== OrderStatus.NEW).length}</p>
           <p className="text-stone-500 text-xs font-bold">Active</p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export const DeliveryApp: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-emerald-600 font-bold text-lg">₹{order.total.toFixed(0)}</p>
+                {/* Price hidden as per request */}
                 <Badge variant={order.status === OrderStatus.NEW ? 'warning' : 'info'}>{order.status}</Badge>
               </div>
             </div>
@@ -295,7 +295,10 @@ export const DeliveryApp: React.FC = () => {
           </div>
         ))}
 
-        <button className="w-full py-4 mt-8 text-rose-500 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+        <button
+          onClick={logout}
+          className="w-full py-4 mt-8 text-rose-500 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+        >
           <LogOut className="w-4 h-4" /> Sign Out
         </button>
       </div>

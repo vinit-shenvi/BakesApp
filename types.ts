@@ -54,6 +54,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role: 'super_admin' | 'outlet_admin' | 'customer' | 'delivery' | 'admin'; // keeping 'admin' for backward compat until refactored
+  storeId?: string; // For outlet admins
   points: number;
   orders: string[];
   wishlist: string[];

@@ -1,9 +1,8 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
-   Search, Heart, ShoppingCart, User, Home, Star, ChevronRight, Plus, Minus,
-   MapPin, Package, Clock, Truck, CheckCircle2, X, ChevronDown, Utensils, Info, Phone, ArrowLeft, ArrowRight, Wallet, LogOut,
-   Settings, LocateFixed
+   Search, Heart, ShoppingBag, MapPin, Star, Plus, Minus, ArrowRight,
+   User as UserIcon, Settings, ChevronRight, Info, X, Home, Filter, Phone, LogOut, ArrowLeft,
+   CheckCircle2, Clock, Wallet, CreditCard, ChevronDown, ShoppingCart
 } from 'lucide-react';
 import { GoogleMap } from '@react-google-maps/api';
 import { MapsWrapper } from '../components/MapsWrapper';
@@ -11,23 +10,31 @@ import { useStore } from '../storeContext';
 import { CATEGORIES } from '../constants';
 import { Badge, Card, Button } from '../components/Shared';
 import { DeliveryMethod, OrderStatus, Product, Order } from '../types';
+import { generateInvoice } from '../utils/invoiceGenerator';
 
 const STORES = [
    { id: 's1', name: 'HSR Layout Kitchen', address: 'Sector 7, HSR, Bangalore', dist: 1.2 },
-   { id: 's2', name: 'Indiranagar Boutique', address: '100ft Road, Indiranagar', dist: 4.5 },
-   { id: 's3', name: 'Koramangala Studio', address: '80ft Road, 4th Block', dist: 3.2 }
+   { id: 's2', name: 'Koramangala Outpost', address: '80 Feet Road, 4th Block', dist: 3.5 },
+   { id: 's3', name: 'Indiranagar Flagship', address: '12th Main, Indiranagar', dist: 5.8 }
 ];
 
 export const CustomerApp: React.FC = () => {
-   const {
-      user, products, cart, wishlist, addToCart: addToCartAction,
-      removeFromCart, updateCartQuantity, toggleWishlist, placeOrder,
-      calculateDeliveryFee
-   } = useStore();
+   const { products, user, addToCart: addToCartAction, cart, updateCartQuantity, removeFromCart, wishlist, toggleWishlist, deliverySettings, placeOrder, logout, calculateDeliveryFee } = useStore();
 
    const [activeTab, setActiveTab] = useState<'home' | 'festive' | 'account'>('home');
-   const [currentScreen, setCurrentScreen] = useState<'main' | 'search' | 'history' | 'wishlist' | 'checkout' | 'category'>('main');
-   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+   const [currentScreen, setCurrentScreen] = useState<'main' | 'category' | 'product' | 'cart' | 'checkout' | 'profile' | 'history' | 'wishlist' | 'addresses' | 'payment'>('main');
+   const [selectedCategory, setSelectedCategory] = useState('All');
+   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+   // Local state for addresses and payments
+   const [addresses, setAddresses] = useState([
+      { id: 'addr1', label: 'Home', val: 'Flat 402, Krishna Heights, Attibele', active: true },
+      { id: 'addr2', label: 'Office', val: 'Tech Park, Electronic City', active: false }
+   ]);
+   const [payments, setPayments] = useState([
+      { id: 'pay1', label: 'HDFC Credit Card', val: '•••• 4242', icon: CreditCard, active: true },
+      { id: 'pay2', label: 'UPI', val: 'harshita@okhdfcbank', icon: Phone, active: false }
+   ]);
 
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DeliveryMethod.HOME_DELIVERY);
    const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -36,7 +43,6 @@ export const CustomerApp: React.FC = () => {
 
    const [searchQuery, setSearchQuery] = useState('');
    const [searchResult, setSearchResult] = useState<Product[]>([]);
-   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
    // Derived Values
    const itemsTotal = cart.reduce((sum, item) => sum + (item.price * 50 * item.quantity), 0);
@@ -207,10 +213,11 @@ export const CustomerApp: React.FC = () => {
          <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-5 mb-10 no-scrollbar">
             <div className="min-w-full snap-center bg-[#48c4e4] rounded-[40px] p-8 text-white relative overflow-hidden group shadow-xl">
                <div className="absolute top-4 right-10 animate-float">
-                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="rotate-45">
-                     <rect x="5" y="5" width="30" height="30" fill="#f6e05e" />
-                     <line x1="5" y1="5" x2="35" y2="35" stroke="white" strokeWidth="1" />
-                     <line x1="35" y1="5" x2="5" y2="35" stroke="white" strokeWidth="1" />
+                  <svg width="60" height="60" viewBox="0 0 60 60" fill="none" className="rotate-12">
+                     <path d="M30 5L55 30L30 55L5 30L30 5Z" fill="#ffeb3b" stroke="white" strokeWidth="2" />
+                     <path d="M30 5L30 55" stroke="white" strokeWidth="1" />
+                     <path d="M5 30L55 30" stroke="white" strokeWidth="1" />
+                     <path d="M30 55C30 55 25 65 35 70" stroke="white" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                </div>
                <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2 opacity-80">Kai Po Che 2025</p>
@@ -225,7 +232,7 @@ export const CustomerApp: React.FC = () => {
          </div>
 
          <section className="mb-12">
-            <div className="px-6 flex justify-between items-end mb-6">
+            <div className="px-6 flex justify-between items-end mb-6 cursor-pointer" onClick={() => { setSelectedCategory('Sankranti Specials'); setCurrentScreen('category'); }}>
                <div>
                   <h3 className="text-lg font-black text-stone-800 uppercase tracking-tighter">Sankranti Specials</h3>
                   <p className="text-[9px] font-black text-stone-400 uppercase tracking-[0.2em] mt-1 border-b-2 border-orange-200 inline-block">Premium Selection</p>
@@ -238,7 +245,7 @@ export const CustomerApp: React.FC = () => {
          </section>
 
          <section className="mb-12">
-            <div className="px-6 flex justify-between items-end mb-6">
+            <div className="px-6 flex justify-between items-end mb-6 cursor-pointer" onClick={() => { setSelectedCategory('Cricket World Cup'); setCurrentScreen('category'); }}>
                <div>
                   <h3 className="text-lg font-black text-stone-800 uppercase tracking-tighter">Republic Delights</h3>
                   <p className="text-[9px] font-black text-stone-400 uppercase tracking-[0.2em] mt-1 border-b-2 border-green-200 inline-block">75th Anniversary</p>
@@ -341,7 +348,11 @@ export const CustomerApp: React.FC = () => {
             ].map(item => (
                <button
                   key={item.id}
-                  onClick={() => { if (item.id === 'history' || item.id === 'wishlist') setCurrentScreen(item.id as any); }}
+                  onClick={() => {
+                     if (['history', 'wishlist', 'addresses', 'payment'].includes(item.id)) {
+                        setCurrentScreen(item.id as any);
+                     }
+                  }}
                   className="w-full bg-white p-5 rounded-[28px] border border-stone-100 flex items-center justify-between group active:scale-95 transition-all shadow-sm"
                >
                   <div className="flex items-center gap-5">
@@ -357,7 +368,10 @@ export const CustomerApp: React.FC = () => {
                </button>
             ))}
 
-            <button className="w-full mt-10 py-5 flex items-center justify-center gap-3 text-rose-600 font-black text-xs uppercase tracking-[0.2em]">
+            <button
+               onClick={logout}
+               className="w-full mt-10 py-5 flex items-center justify-center gap-3 text-rose-600 font-black text-xs uppercase tracking-[0.2em]"
+            >
                <LogOut className="w-4 h-4" /> Logout Account
             </button>
             <div className="text-center pb-20">
@@ -392,12 +406,89 @@ export const CustomerApp: React.FC = () => {
                         <p key={item} className="text-xs font-bold text-stone-600">{item}</p>
                      ))}
                   </div>
-                  <div className="flex justify-between items-center pt-4 border-t border-dashed border-stone-100">
+                  <div className="flex justify-between items-center pt-4 border-t border-dashed border-stone-100 mb-4">
                      <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Paid Amount</span>
                      <span className="text-xl font-black text-orange-700">₹{ord.total.toFixed(2)}</span>
                   </div>
+                  <button
+                     onClick={() => {
+                        // Mock conversion to Order object for the generator since history items here are simplified
+                        const mockOrder: Order = {
+                           id: ord.id,
+                           customerName: user.name,
+                           customerPhone: '+91 98765 43210',
+                           address: 'Saved Location', // Placeholder
+                           items: [], // Placeholder as items string is flat
+                           total: ord.total,
+                           status: OrderStatus.DELIVERED,
+                           method: DeliveryMethod.HOME_DELIVERY,
+                           timestamp: new Date().toISOString(),
+                           paymentStatus: 'PAID'
+                        };
+                        generateInvoice(mockOrder);
+                     }}
+                     className="w-full py-3 border border-stone-200 rounded-xl text-xs font-bold text-stone-600 hover:bg-stone-50 transition-colors"
+                  >
+                     Download Invoice
+                  </button>
                </div>
             ))}
+         </div>
+      </div>
+   );
+
+   const renderAddresses = () => (
+      <div className="bg-white min-h-screen animate-in slide-in-from-right duration-300 z-[200] relative pb-20">
+         <header className="px-6 pt-16 pb-8 border-b border-stone-50 flex items-center gap-4 sticky top-0 bg-white/90 backdrop-blur-md">
+            <button onClick={() => setCurrentScreen('profile')}><ArrowLeft className="w-6 h-6 text-orange-600" /></button>
+            <h2 className="text-xl font-black text-stone-800 uppercase tracking-tighter">Saved Addresses</h2>
+         </header>
+         <div className="p-6 space-y-4">
+            {addresses.map(addr => (
+               <div key={addr.id} className={`p-5 rounded-[24px] border flex items-center justify-between ${addr.active ? 'border-orange-500 bg-orange-50' : 'border-stone-100 bg-white'}`}>
+                  <div className="flex items-center gap-4">
+                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${addr.active ? 'bg-orange-500 text-white' : 'bg-stone-50 text-stone-400'}`}>
+                        <MapPin className="w-5 h-5" />
+                     </div>
+                     <div>
+                        <p className="font-bold text-stone-800 text-sm">{addr.label}</p>
+                        <p className="text-xs font-bold text-stone-400 mt-0.5">{addr.val}</p>
+                     </div>
+                  </div>
+                  {addr.active && <CheckCircle2 className="w-5 h-5 text-orange-500" />}
+               </div>
+            ))}
+            <button className="w-full py-4 border-2 border-dashed border-stone-200 rounded-[24px] text-stone-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-orange-200 hover:text-orange-500 transition-all">
+               <Plus className="w-5 h-5" /> Add New Address
+            </button>
+         </div>
+      </div>
+   );
+
+   const renderPaymentMethods = () => (
+      <div className="bg-white min-h-screen animate-in slide-in-from-right duration-300 z-[200] relative pb-20">
+         <header className="px-6 pt-16 pb-8 border-b border-stone-50 flex items-center gap-4 sticky top-0 bg-white/90 backdrop-blur-md">
+            <button onClick={() => setCurrentScreen('profile')}><ArrowLeft className="w-6 h-6 text-orange-600" /></button>
+            <h2 className="text-xl font-black text-stone-800 uppercase tracking-tighter">Payment Methods</h2>
+         </header>
+         <div className="p-6 space-y-4">
+            {payments.map(pay => (
+               <div key={pay.id} className={`p-5 rounded-[24px] border flex items-center justify-between ${pay.active ? 'border-emerald-500 bg-emerald-50' : 'border-stone-100 bg-white'}`}>
+                  <div className="flex items-center gap-4">
+                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${pay.active ? 'bg-emerald-500 text-white' : 'bg-stone-50 text-stone-400'}`}>
+                        <pay.icon className="w-5 h-5" />
+                     </div>
+                     <div>
+                        <p className="font-bold text-stone-800 text-sm">{pay.label}</p>
+                        <p className="text-xs font-bold text-stone-400 mt-0.5">{pay.val}</p>
+                     </div>
+                  </div>
+                  {pay.active && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+               </div>
+            ))}
+            <button className="w-full py-4 border-2 border-dashed border-stone-200 rounded-[24px] text-stone-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-emerald-200 hover:text-emerald-500 transition-all">
+               <Plus className="w-5 h-5" /> Add New Card
+            </button>
          </div>
       </div>
    );
@@ -501,6 +592,26 @@ export const CustomerApp: React.FC = () => {
       </div>
    );
 
+   const renderWishlist = () => (
+      <div className="bg-white min-h-screen animate-in slide-in-from-right duration-300 z-[200] relative">
+         <header className="px-6 pt-16 pb-8 border-b border-stone-50 flex items-center gap-4">
+            <button onClick={() => setCurrentScreen('main')}><ArrowLeft className="w-6 h-6 text-orange-600" /></button>
+            <h2 className="text-xl font-black text-stone-800 uppercase tracking-tighter">Your Wishlist</h2>
+         </header>
+         {wishlist.length === 0 ? (
+            <div className="p-12 text-center opacity-30 flex flex-col items-center">
+               <Heart className="w-16 h-16 mb-4 text-rose-500" />
+               <p className="font-bold">Your wishlist is empty</p>
+               <p className="text-xs">Save your favorites for later!</p>
+            </div>
+         ) : (
+            <div className="p-6 grid grid-cols-2 gap-4">
+               {products.filter(p => wishlist.includes(p.id)).map(p => <ProductCardSmall key={p.id} product={p} />)}
+            </div>
+         )}
+      </div>
+   );
+
    const LocationPicker = () => {
       // Default center (Bangalore)
       const defaultCenter = { lat: 12.9716, lng: 77.5946 };
@@ -585,47 +696,40 @@ export const CustomerApp: React.FC = () => {
                </>
             )}
             {currentScreen === 'search' && renderSearch()}
-            {currentScreen === 'wishlist' && (
-               <div className="bg-white min-h-screen animate-in slide-in-from-right duration-300 z-[200] relative">
-                  <header className="px-6 pt-16 pb-8 border-b border-stone-50 flex items-center gap-4">
-                     <button onClick={() => setCurrentScreen('main')}><ArrowLeft className="w-6 h-6 text-orange-600" /></button>
-                     <h2 className="text-xl font-black text-stone-800 uppercase tracking-tighter">Your Wishlist</h2>
-                  </header>
-                  <div className="p-12 text-center opacity-30 flex flex-col items-center">
-                     <Heart className="w-16 h-16 mb-4 text-rose-500" />
-                     <p className="font-bold">Your wishlist is empty</p>
-                     <p className="text-xs">Save your favorites for later!</p>
-                  </div>
-               </div>
-            )}
+            {currentScreen === 'wishlist' && renderWishlist()}
+
+            {currentScreen === 'addresses' && renderAddresses()}
+            {currentScreen === 'payment' && renderPaymentMethods()}
             {currentScreen === 'history' && renderHistory()}
             {currentScreen === 'category' && renderCategoryDetail()}
             {currentScreen === 'checkout' && renderCheckout()}
-         </div>
 
-         {/* Floating Checkout Bar */}
-         {cart.length > 0 && currentScreen === 'main' && (
-            <div className="fixed bottom-24 left-6 right-6 z-[100] animate-in slide-in-from-bottom-5">
-               <div className="bg-orange-700 rounded-[32px] p-2 pl-6 flex items-center justify-between shadow-2xl">
-                  <div className="flex flex-col">
-                     <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 bg-white/20 rounded-md flex items-center justify-center text-white text-[10px] font-black">{cart.length}</div>
-                        <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Kanti Basket</span>
+            {/* Floating Checkout Bar */}
+            {cart.length > 0 && currentScreen === 'main' && (
+               <div className="fixed bottom-24 left-6 right-6 z-[100] animate-in slide-in-from-bottom-5">
+                  <div className="bg-orange-700 rounded-[32px] p-2 pl-6 flex items-center justify-between shadow-2xl">
+                     <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                           <div className="w-5 h-5 bg-white/20 rounded-md flex items-center justify-center text-white text-[10px] font-black">{cart.length}</div>
+                           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Kanti Basket</span>
+                        </div>
+                        <span className="text-white font-black text-xl">₹{itemsTotal.toFixed(0)}</span>
                      </div>
-                     <span className="text-white font-black text-xl">₹{itemsTotal.toFixed(0)}</span>
+                     <button onClick={() => setCurrentScreen('checkout')} className="bg-white text-orange-700 px-8 py-4 rounded-[26px] font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2">
+                        Checkout
+                     </button>
                   </div>
-                  <button onClick={() => setCurrentScreen('checkout')} className="bg-white text-orange-700 px-8 py-4 rounded-[26px] font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2">
-                     Checkout
-                  </button>
                </div>
-            </div>
-         )}
+            )}
 
+            {showLocationPicker && <LocationPicker />}
+            {selectedProduct && renderProductModal()}
+         </div>
          {/* Navigation */}
          <nav className="h-20 bg-white border-t border-stone-50 flex justify-around items-center px-6 sticky bottom-0 z-50">
             {[
                { id: 'home', icon: Home, label: 'Explore' },
-               { id: 'festive', icon: Zap, label: 'Festive' },
+               { id: 'festive', icon: Star, label: 'Festive' },
                { id: 'account', icon: UserIcon, label: 'Account' }
             ].map(item => (
                <button
@@ -638,12 +742,6 @@ export const CustomerApp: React.FC = () => {
                </button>
             ))}
          </nav>
-
-         {showLocationPicker && <LocationPicker />}
-         {selectedProduct && renderProductModal()}
       </div>
    );
 };
-
-const Zap = ({ className }: { className?: string }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
-const UserIcon = ({ className }: { className?: string }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;

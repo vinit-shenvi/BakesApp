@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import {
   BarChart3, LayoutDashboard, Package, ShoppingCart, Users, Truck, Settings, Plus, Search,
   MoreVertical, Filter, TrendingUp, Calendar, AlertCircle, CheckCircle2, Map as MapIcon, ChevronRight,
-  Clock, XCircle, CreditCard, Gift, MousePointer2, Bell, X, UserPlus, Phone, ShieldCheck, ArrowLeft, Activity, Trash, Edit
+  Clock, XCircle, CreditCard, Gift, MousePointer2, Bell, X, UserPlus, Phone, ShieldCheck, ArrowLeft, Activity, Trash, Edit, Store as StoreIcon,
+  LayoutGrid, ClipboardList, Wallet
 } from 'lucide-react';
 import { useStore } from '../storeContext';
-import { OrderStatus, DeliveryMethod, DeliveryTier } from '../types';
+import { OrderStatus, DeliveryMethod, DeliveryTier, Product } from '../types';
 import { Badge, Card, Button } from '../components/Shared';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { generateInvoice } from '../utils/invoiceGenerator';
 
 const data = [
   { name: 'Mon', sales: 400, orders: 24 },
@@ -21,30 +23,46 @@ const data = [
 ];
 
 export const AdminDashboard: React.FC = () => {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const { orders, products, deliveryPartners, updateOrderStatus, addPartner } = useStore();
+  const { orders, products, deliveryPartners, updateOrderStatus, addPartner, deliverySettings, updateDeliverySettings, addProduct, userRole } = useStore();
   const [activeView, setActiveView] = useState<'overview' | 'orders' | 'products' | 'delivery' | 'festivals' | 'customers' | 'settings' | 'order_details'>('overview');
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [editingTier, setEditingTier] = useState<any>(null); // For editing logic
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'menu' | 'customers' | 'analytics' | 'finance' | 'settings'>('dashboard');
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+
+  // RBAC: Filter Sidebar Items
+  const sidebarItems = [
+    { id: 'overview', icon: LayoutGrid, label: 'Dashboard' },
+    { id: 'orders', icon: ClipboardList, label: 'Order Manager' },
+    { id: 'products', icon: Package, label: 'Products & Stock' },
+    { id: 'delivery', icon: Truck, label: 'Fleet Tracking' },
+    { id: 'users', icon: Users, label: 'Customers', restrictedTo: ['super_admin'] },
+    { id: 'festivals', icon: Gift, label: 'Festive Hub', restrictedTo: ['super_admin'] },
+    { id: 'analytics', icon: TrendingUp, label: 'Analytics', restrictedTo: ['super_admin'] },
+    { id: 'finance', icon: Wallet, label: 'Finance', restrictedTo: ['super_admin'] },
+    { id: 'settings', icon: Settings, label: 'Settings', restrictedTo: ['super_admin'] }
+  ].filter(item => !item.restrictedTo || item.restrictedTo.includes(userRole as string) || userRole === 'admin');
+
+  // Note: 'admin' role in dev is treated as Super Admin for now to not break existing flow until fully migrated
+  const isSuperAdmin = userRole === 'super_admin' || userRole === 'admin';
+
+  // New Product State
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+    name: '', category: 'Fresh Sweets', price: 0,
+    image: 'https://picsum.photos/seed/new/400/300',
+    inStock: true, description: ''
+  });
 
   // Onboarding Form State
   const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '' });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const filteredOrders = orderFilter === 'ALL' ? (orders || []) : (orders || []).filter(o => o.status === orderFilter);
 
-  const handleOnboard = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newRider.name && newRider.phone && newRider.bloodGroup) {
-      addPartner(newRider);
-      setNewRider({ name: '', phone: '', bloodGroup: '' });
-      setShowOnboarding(false);
-      // In a real app we'd show a toast here
-      alert(`Rider ${newRider.name} onboarded successfully!`);
-    }
-  };
+  // ... handlers ...
 
   const SidebarItem = ({ icon: Icon, label, id }: any) => (
     <button
@@ -52,7 +70,8 @@ export const AdminDashboard: React.FC = () => {
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeView === id ? 'bg-amber-600 text-white shadow-lg' : 'text-stone-500 hover:bg-stone-100'}`}
     >
       <Icon className="w-5 h-5" />
-      <span className="font-medium">{label}</span>
+      <span className="font-bold text-sm tracking-wide">{label}</span>
+      {activeView === id && <ChevronRight className="w-4 h-4 ml-auto" />}
     </button>
   );
 
@@ -307,7 +326,7 @@ export const AdminDashboard: React.FC = () => {
         <Card className="p-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-lg">Order Items</h3>
-            <Button className="bg-stone-900 text-white text-xs">Invoice</Button>
+            <Button className="bg-stone-900 text-white text-xs" onClick={() => generateInvoice(order)}>Invoice</Button>
           </div>
           <table className="w-full text-left">
             <thead>
@@ -523,30 +542,57 @@ export const AdminDashboard: React.FC = () => {
   );
 
   const renderProducts = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Menu Management</h2>
-        <Button className="flex items-center gap-2"><Plus className="w-4 h-4" /> Add Product</Button>
+    <div className="p-6">
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-5 rounded-3xl border border-stone-100 shadow-sm">
+          <p className="text-stone-400 font-bold text-xs uppercase tracking-widest mb-1">Total Items</p>
+          <h3 className="text-3xl font-black text-stone-800">{products.length}</h3>
+        </div>
+        {/* ... other stats ... */}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {(products || []).map(p => (
-          <Card key={p.id} className="p-4 flex gap-4 hover:border-amber-200 transition-colors">
-            <img src={p.image} className="w-24 h-24 rounded-xl object-cover" alt="" />
-            <div className="flex-1 flex flex-col">
-              <div className="flex justify-between items-start">
-                <h3 className="font-bold text-stone-800 leading-tight">{p.name}</h3>
-                <button className="text-stone-400 hover:text-stone-600"><MoreVertical className="w-5 h-5" /></button>
+
+      {/* Products Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-black text-stone-800 uppercase tracking-tighter">Product Inventory</h2>
+        {isSuperAdmin && (
+          <button onClick={() => setShowProductModal(true)} className="bg-stone-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-stone-800 transition-all flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Add Product
+          </button>
+        )}
+      </div>
+
+      {/* Product Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {products.map(p => (
+          <div key={p.id} className="bg-white p-4 rounded-3xl border border-stone-100 hover:shadow-lg transition-all group">
+            <div className="flex gap-4">
+              <div className="w-24 h-24 bg-stone-100 rounded-2xl overflow-hidden relative">
+                <img src={p.image} className="w-full h-full object-cover" />
+                {!p.inStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold uppercase">Out of Stock</div>}
               </div>
-              <p className="text-[10px] text-stone-500 mb-2 uppercase font-bold tracking-wider">{p.category}</p>
-              <div className="mt-auto flex items-center justify-between">
-                <span className="font-bold text-amber-700 text-lg">${p.price}</span>
-                <div className="flex gap-1">
-                  {p.isBestSeller && <Badge variant="primary">HOT</Badge>}
-                  {p.isFestive && <Badge variant="info">FESTIVE</Badge>}
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className="font-bold text-stone-800">{p.name}</h4>
+                  <button className="text-stone-300 hover:text-stone-600"><MoreVertical className="w-5 h-5" /></button>
                 </div>
+                <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-3">{p.category}</p>
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-lg text-stone-800">₹{p.price}</span>
+                  <div className="flex items-center gap-2">
+                    {/* Stock Toggle for Everyone */}
+                    <div className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${p.inStock ? 'bg-emerald-500' : 'bg-stone-200'}`}>
+                      <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${p.inStock ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
+                  </div>
+                </div>
+                {/* Outlet Admin Restriction Note */}
+                {!isSuperAdmin && (
+                  <p className="text-[9px] text-stone-300 mt-2 italic">Stock management only</p>
+                )}
               </div>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </div>
@@ -631,7 +677,7 @@ export const AdminDashboard: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Customer Database</h2>
-        <Button variant="outline" className="flex items-center gap-2"><ArrowLeft className="w-4 h-4" /> Export CSV</Button>
+        <Button variant="outline" className="flex items-center gap-2" onClick={exportCustomersCSV}><ArrowLeft className="w-4 h-4" /> Export CSV</Button>
       </div>
       <Card className="overflow-hidden">
         <table className="w-full text-left">
@@ -684,7 +730,60 @@ export const AdminDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Store className="w-5 h-5 text-amber-600" /> Store Settings</h3>
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Settings className="w-5 h-5 text-amber-600" /> Delivery Settings</h3>
+          <div className="space-y-4">
+            <div>
+              <p className="font-bold text-stone-700 text-sm mb-1">Base Delivery Price (₹)</p>
+              <input
+                type="number"
+                className="w-full p-2 border rounded-md"
+                value={deliverySettings.basePrice}
+                onChange={(e) => updateDeliverySettings({ ...deliverySettings, basePrice: Number(e.target.value) })}
+              />
+            </div>
+
+            <p className="font-bold text-stone-700 text-sm pt-2">Distance Tiers</p>
+            {deliverySettings.tiers.map((tier, index) => (
+              <div key={index} className="flex items-center gap-2 text-sm">
+                <input
+                  type="number"
+                  className="w-20 p-2 border rounded-md"
+                  value={tier.minDistance}
+                  onChange={(e) => {
+                    const newTiers = [...deliverySettings.tiers];
+                    newTiers[index].minDistance = Number(e.target.value);
+                    updateDeliverySettings({ ...deliverySettings, tiers: newTiers });
+                  }}
+                />
+                <span>-</span>
+                <input
+                  type="number"
+                  className="w-20 p-2 border rounded-md"
+                  value={tier.maxDistance}
+                  onChange={(e) => {
+                    const newTiers = [...deliverySettings.tiers];
+                    newTiers[index].maxDistance = Number(e.target.value);
+                    updateDeliverySettings({ ...deliverySettings, tiers: newTiers });
+                  }}
+                />
+                <span>km : ₹</span>
+                <input
+                  type="number"
+                  className="w-20 p-2 border rounded-md"
+                  value={tier.price}
+                  onChange={(e) => {
+                    const newTiers = [...deliverySettings.tiers];
+                    newTiers[index].price = Number(e.target.value);
+                    updateDeliverySettings({ ...deliverySettings, tiers: newTiers });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><StoreIcon className="w-5 h-5 text-amber-600" /> Store Settings</h3>
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-stone-50">
               <div>
@@ -713,13 +812,6 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div className="w-10 h-6 bg-emerald-500 rounded-full relative cursor-pointer"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm" /></div>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-stone-50">
-              <div>
-                <p className="font-bold text-stone-700 text-sm">Low Stock Warnings</p>
-                <p className="text-xs text-stone-400">Alert when inventory is low</p>
-              </div>
-              <div className="w-10 h-6 bg-stone-200 rounded-full relative cursor-pointer"><div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm" /></div>
-            </div>
           </div>
         </Card>
       </div>
@@ -728,6 +820,154 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-stone-50 overflow-hidden relative font-sans">
+      {/* Add Product Modal */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <Card className="max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Add New Product</h3>
+              <button onClick={() => setShowProductModal(false)}><X className="w-6 h-6 text-stone-400 hover:text-stone-600" /></button>
+            </div>
+            <form onSubmit={handleAddProduct} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase">Product Name</label>
+                <input
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 font-bold text-stone-700 outline-none focus:border-amber-500"
+                  value={newProduct.name}
+                  onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
+                  placeholder="e.g. Kaju Katli"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-stone-500 uppercase">Price (₹)</label>
+                  <input
+                    type="number"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 font-bold text-stone-700 outline-none focus:border-amber-500"
+                    value={newProduct.price}
+                    onChange={e => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-stone-500 uppercase">Category</label>
+                  <select
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 font-bold text-stone-700 outline-none focus:border-amber-500"
+                    value={newProduct.category}
+                    onChange={e => setNewProduct({ ...newProduct, category: e.target.value })}
+                  >
+                    <option value="Fresh Sweets">Fresh Sweets</option>
+                    <option value="Cakes & Pastries">Cakes & Pastries</option>
+                    <option value="Savories">Savories</option>
+                    <option value="Premium Gifts">Premium Gifts</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Weights Selection */}
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase block mb-2">Available Weights</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['250g', '500g', '1kg', 'Custom'].map(w => (
+                    <label key={w} className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-lg border border-stone-100 cursor-pointer">
+                      <input type="checkbox" className="rounded text-amber-600 focus:ring-amber-500" />
+                      <span className="text-xs font-bold text-stone-600">{w}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase">Image URL</label>
+                <input
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 font-bold text-stone-700 outline-none focus:border-amber-500"
+                  value={newProduct.image}
+                  onChange={e => setNewProduct({ ...newProduct, image: e.target.value })}
+                  placeholder="https://..."
+                />
+                <p className="text-[10px] text-stone-400 mt-1">Recommended: 800x600px, JPG or PNG</p>
+              </div>
+
+              <div className="pt-4">
+                <Button variant="primary" className="w-full py-4 text-base">Create Product</Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-stone-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <Card className="w-full max-w-md p-8 animate-in zoom-in-95 duration-300 relative shadow-2xl">
+            <button onClick={() => setShowOnboarding(false)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600 p-2 hover:bg-stone-100 rounded-full">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <UserPlus className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-display text-stone-800">Rider Onboarding</h3>
+              <p className="text-stone-500 text-sm">Add a new delivery partner to the fleet</p>
+            </div>
+
+            <form onSubmit={handleOnboard} className="space-y-5">
+              <div>
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2 block">Full Name</label>
+                <div className="relative">
+                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Sameer Khanna"
+                    className="w-full pl-11 pr-4 py-3 bg-stone-50 rounded-xl border focus:ring-2 focus:ring-amber-200 focus:border-amber-600 outline-none transition-all"
+                    value={newRider.name}
+                    onChange={(e) => setNewRider(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2 block">Phone Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+91 00000-00000"
+                    className="w-full pl-11 pr-4 py-3 bg-stone-50 rounded-xl border focus:ring-2 focus:ring-amber-200 focus:border-amber-600 outline-none transition-all"
+                    value={newRider.phone}
+                    onChange={(e) => setNewRider(prev => ({ ...prev, phone: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2 block">Blood Group</label>
+                <div className="relative">
+                  <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <select
+                    required
+                    className="w-full pl-11 pr-4 py-3 bg-stone-50 rounded-xl border focus:ring-2 focus:ring-amber-200 focus:border-amber-600 outline-none transition-all appearance-none"
+                    value={newRider.bloodGroup}
+                    onChange={(e) => setNewRider(prev => ({ ...prev, bloodGroup: e.target.value }))}
+                  >
+                    <option value="" disabled>Select Blood Group</option>
+                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <p className="text-[10px] text-emerald-800 font-medium leading-relaxed">By onboarding, this rider will gain access to the Bakes & Flakes Delivery App and be eligible for automatic task assignments.</p>
+              </div>
+              <Button type="submit" className="w-full py-4 text-lg">Activate Rider Profile</Button>
+              <button type="button" onClick={() => setShowOnboarding(false)} className="w-full py-2 text-stone-400 text-sm font-bold hover:text-stone-600 transition-colors">Cancel</button>
+            </form>
+          </Card>
+        </div>
+      )}
+
       {/* Rider Onboarding Modal */}
       {showOnboarding && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-stone-900/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -808,16 +1048,9 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <nav className="flex-1 space-y-1">
-          <SidebarItem id="overview" label="Dashboard" icon={LayoutDashboard} />
-          <SidebarItem id="orders" label="Order Manager" icon={ShoppingCart} />
-          <SidebarItem id="products" label="Products" icon={Package} />
-          <SidebarItem id="delivery" label="Fleet Tracking" icon={Truck} />
-          <SidebarItem id="festivals" label="Festive Hub" icon={Calendar} />
-          <div className="pt-8 pb-4 px-2">
-            <p className="text-[10px] uppercase font-bold text-stone-400 tracking-widest">Business</p>
-          </div>
-          <SidebarItem id="users" label="Customers" icon={Users} />
-          <SidebarItem id="settings" label="Config" icon={Settings} />
+          {sidebarItems.map(item => (
+            <SidebarItem key={item.id} id={item.id} icon={item.icon} label={item.label} />
+          ))}
         </nav>
 
         <div className="mt-auto pt-8 border-t border-stone-100">
