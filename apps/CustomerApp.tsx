@@ -21,7 +21,7 @@ const STORES = [
 export const CustomerApp: React.FC = () => {
    const { products, user, addToCart: addToCartAction, cart, updateCartQuantity, removeFromCart, wishlist, toggleWishlist, deliverySettings, placeOrder, logout, calculateDeliveryFee } = useStore();
 
-   const [activeTab, setActiveTab] = useState<'home' | 'festive' | 'account'>('home');
+   const [activeTab, setActiveTab] = useState<'home' | 'match' | 'account'>('home');
    const [currentScreen, setCurrentScreen] = useState<'main' | 'category' | 'product' | 'cart' | 'checkout' | 'profile' | 'history' | 'wishlist' | 'addresses' | 'payment'>('main');
    const [selectedCategory, setSelectedCategory] = useState('All');
    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -38,6 +38,7 @@ export const CustomerApp: React.FC = () => {
 
    const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DeliveryMethod.HOME_DELIVERY);
    const [showLocationPicker, setShowLocationPicker] = useState(false);
+   const [showAddressSearch, setShowAddressSearch] = useState(false); // New: Address Search Modal
    const [selectedStore, setSelectedStore] = useState(STORES[0]);
    const [mapCenter, setMapCenter] = useState({ lat: 12.9716, lng: 77.5946 }); // Default center (Bangalore)
 
@@ -46,6 +47,15 @@ export const CustomerApp: React.FC = () => {
 
    // Order Details
    const [receiverDetails, setReceiverDetails] = useState({ name: '', phone: '' });
+
+   // Profile Edit State
+   const [isEditingProfile, setIsEditingProfile] = useState(false);
+   const [profileData, setProfileData] = useState({
+      name: 'Harshita Sharma',
+      phone: '+91 98765 43210',
+      email: 'harshita@example.com',
+      dob: '1998-05-24'
+   });
 
    // Derived Values
    const itemsTotal = cart.reduce((sum, item) => sum + (item.price * 50 * item.quantity), 0);
@@ -71,25 +81,52 @@ export const CustomerApp: React.FC = () => {
 
    const ProductCardSmall: React.FC<{ product: Product }> = ({ product }) => {
       const cartItem = cart.find(item => item.id === product.id);
+      // New: Local state for selected variant (default to first or main product)
+      const [selectedVariant, setSelectedVariant] = useState(
+         (product.variants && product.variants.length > 0) ? product.variants[0] : null
+      );
+
       const isWished = wishlist.includes(product.id);
+
+      // Determine Display Values
+      const displayPrice = selectedVariant ? selectedVariant.price : product.price;
+      const displayWeight = selectedVariant ? selectedVariant.weight : '250g'; // Fallback or standard
+
       return (
-         <div onClick={() => setSelectedProduct(product)} className="bg-white rounded-[28px] p-3 shadow-sm border border-stone-100/50 flex flex-col relative w-44 flex-shrink-0 snap-center cursor-pointer active:scale-95 transition-transform">
+         <div onClick={() => setSelectedProduct(product)} className="bg-white rounded-[28px] p-3 shadow-sm border border-stone-100/50 flex flex-col relative w-44 flex-shrink-0 snap-center cursor-pointer active:scale-95 transition-transform h-[280px]">
             <button onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }} className="absolute top-4 right-4 z-10 p-1.5 bg-white/80 rounded-full shadow-sm">
                <Heart className={`w-3 h-3 ${isWished ? 'fill-rose-500 text-rose-500' : 'text-stone-300'}`} />
             </button>
-            <div className="h-32 rounded-2xl overflow-hidden mb-2 bg-stone-50">
+            <div className="h-28 rounded-2xl overflow-hidden mb-2 bg-stone-50 flex-shrink-0">
                <img src={product.image} className="w-full h-full object-cover" />
             </div>
-            <div className="px-1">
-               <div className="flex items-center gap-1 mb-1">
-                  <div className="w-2 h-2 border border-emerald-600 flex items-center justify-center p-[1px]"><div className="w-1 h-1 bg-emerald-600 rounded-full" /></div>
-                  <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">250g</span>
-               </div>
-               <h4 className="font-bold text-stone-800 text-xs line-clamp-1 mb-2">{product.name}</h4>
-               <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-stone-900 text-sm">₹{Math.round(product.price * 50)}</span>
+            <div className="px-1 flex-1 flex flex-col">
+               <h4 className="font-bold text-stone-800 text-sm line-clamp-1 mb-1">{product.name}</h4>
+
+               {/* Variants Chips */}
+               {product.variants && product.variants.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                     {product.variants.map((v, idx) => (
+                        <button
+                           key={idx}
+                           onClick={(e) => { e.stopPropagation(); setSelectedVariant(v); }}
+                           className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-colors ${selectedVariant?.id === v.id ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-stone-400 border-stone-200'}`}
+                        >
+                           {v.weight}
+                        </button>
+                     ))}
+                  </div>
+               ) : (
+                  <div className="flex items-center gap-1 mb-2">
+                     <div className="w-2 h-2 border border-emerald-600 flex items-center justify-center p-[1px]"><div className="w-1 h-1 bg-emerald-600 rounded-full" /></div>
+                     <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">Standard</span>
+                  </div>
+               )}
+
+               <div className="mt-auto flex items-center justify-between">
+                  <span className="font-extrabold text-stone-900 text-sm">₹{displayPrice}</span>
                   {!cartItem ? (
-                     <button onClick={(e) => { e.stopPropagation(); addToCartAction(product); }} className="bg-white border border-orange-500 text-orange-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">Add</button>
+                     <button onClick={(e) => { e.stopPropagation(); addToCartAction({ ...product, price: displayPrice, name: `${product.name} (${displayWeight})` }); }} className="bg-white border border-orange-500 text-orange-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">Add</button>
                   ) : (
                      <div onClick={(e) => e.stopPropagation()} className="flex items-center bg-orange-500 text-white rounded-full px-2 py-1 gap-2">
                         <button onClick={() => updateCartQuantity(product.id, -1)}><Minus className="w-3 h-3" /></button>
@@ -180,57 +217,101 @@ export const CustomerApp: React.FC = () => {
 
    const renderHome = () => (
       <div className="animate-in fade-in duration-500 pb-32">
-         <div className="bg-orange-600 py-1.5">
-            <div className="animate-marquee whitespace-nowrap text-white text-[9px] font-black uppercase tracking-[0.3em]">
-               TRADITIONAL HEARTCRAFTED BAKES • HAPPY MAKARA SANKRANTI • KAI PO CHE! • HERITAGE TIL-GUL SPECIALS NOW LIVE • SPREADING LOVE •
+         {/* T20 Header */}
+         <div className="bg-indigo-900 py-1.5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>
+            <div className="animate-marquee whitespace-nowrap text-white text-[9px] font-black uppercase tracking-[0.3em] relative z-10">
+               ICC T20 WORLD CUP 2026 • LIVE SCREENING AT ALL OUTLETS • CRICKET FEVER IS ON • CHEER FOR INDIA • SPECIAL MATCH DAY MENU •
             </div>
          </div>
 
-         <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-xl border-b border-stone-50 z-50">
+         <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-xl border-b border-indigo-50 z-50">
             <button onClick={() => setShowLocationPicker(true)} className="flex flex-col items-start group">
                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">KANTI EXPRESS - 20MINS</span>
-                  <ChevronDown className="w-3 h-3 text-orange-600" />
+                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">KANTI EXPRESS - 20MINS</span>
+                  <ChevronDown className="w-3 h-3 text-indigo-600" />
                </div>
                <p className="font-bold text-stone-900 text-[13px]">
                   {deliveryMethod === DeliveryMethod.HOME_DELIVERY ? 'Home - HSR Layout' : selectedStore.name}
                </p>
             </button>
             <div className="flex items-center gap-3">
-               <button onClick={() => setCurrentScreen('search')} className="p-2.5 bg-stone-50 rounded-full text-orange-600"><Search className="w-5 h-5" /></button>
-               <div className="w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden" onClick={() => setActiveTab('account')}>
+               <button onClick={() => setCurrentScreen('search')} className="p-2.5 bg-indigo-50 rounded-full text-indigo-600"><Search className="w-5 h-5" /></button>
+               <div className="w-10 h-10 rounded-full border-2 border-indigo-100 shadow-md overflow-hidden" onClick={() => setActiveTab('account')}>
                   <img src="https://picsum.photos/seed/customer/200" className="w-full h-full object-cover" />
                </div>
             </div>
          </header>
 
-         <div className="text-center py-10">
-            <div className="font-display italic text-amber-900 text-2xl leading-none">Kanti</div>
-            <h1 className="text-5xl font-sans font-black text-stone-800 uppercase tracking-tighter leading-[0.85] mb-4">Bakes<br />& Flakes</h1>
-            <div className="flex items-center justify-center gap-2 mb-8">
-               <div className="px-3 py-1 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest rounded-md">Makar Sankranti Specials</div>
+         {/* Hero Section - Upcoming Match Card */}
+         <div className="relative py-8 px-5 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-blue-900 to-indigo-800"></div>
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent"></div>
+
+            <div className="relative z-10 text-center">
+               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 mb-6">
+                  <Clock className="w-3 h-3 text-yellow-400" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Starts 07 Feb • 7:30 PM</span>
+               </div>
+
+               {/* Match Face-Off Card */}
+               <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-[32px] mb-8 shadow-2xl transform transition-all hover:scale-[1.02]">
+                  <div className="flex justify-between items-center text-white mb-6">
+                     <div className="text-center">
+                        <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-2xl shadow-xl mx-auto mb-2 border-2 border-blue-500 ring-4 ring-blue-500/20">🇮🇳</div>
+                        <p className="font-black text-lg uppercase tracking-wider">India</p>
+                     </div>
+                     <div className="text-center px-2">
+                        <div className="text-3xl font-black text-white/20 italic">VS</div>
+                     </div>
+                     <div className="text-center">
+                        <div className="w-14 h-14 bg-yellow-400 rounded-full flex items-center justify-center text-2xl shadow-xl mx-auto mb-2 border-2 border-green-800 ring-4 ring-yellow-400/20">🇦🇺</div>
+                        <p className="font-black text-lg uppercase tracking-wider">Australia</p>
+                     </div>
+                  </div>
+
+                  {/* Countdown Timer Mockup */}
+                  <div className="flex justify-center gap-3">
+                     {['07', '14', '32'].map((time, idx) => (
+                        <div key={idx} className="text-center">
+                           <div className="bg-gradient-to-b from-indigo-800 to-indigo-950 w-12 h-12 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
+                              <span className="font-mono text-xl font-bold text-white">{time}</span>
+                           </div>
+                           <span className="text-[8px] font-black text-indigo-300 uppercase mt-1 block">{['Days', 'Hrs', 'Mins'][idx]}</span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+
+               <h1 className="text-3xl font-sans font-black text-white italic uppercase tracking-tighter leading-none mb-1 drop-shadow-lg">
+                  Get Match Ready!
+               </h1>
+               <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-0">Pre-order match snacks now</p>
             </div>
-            <p className="font-sans font-bold text-stone-400 uppercase text-[9px] tracking-[0.3em]">Legacy Unit of <span className="text-amber-900 italic font-display lowercase text-base">Kanti Sweets</span></p>
          </div>
 
-         <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-5 mb-10 no-scrollbar">
-            <div className="min-w-full snap-center bg-[#48c4e4] rounded-[40px] p-8 text-white relative overflow-hidden group shadow-xl">
-               <div className="absolute top-4 right-10 animate-float">
-                  <svg width="60" height="60" viewBox="0 0 60 60" fill="none" className="rotate-12">
-                     <path d="M30 5L55 30L30 55L5 30L30 5Z" fill="#ffeb3b" stroke="white" strokeWidth="2" />
-                     <path d="M30 5L30 55" stroke="white" strokeWidth="1" />
-                     <path d="M5 30L55 30" stroke="white" strokeWidth="1" />
-                     <path d="M30 55C30 55 25 65 35 70" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-               </div>
-               <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2 opacity-80">Kai Po Che 2025</p>
-               <h2 className="text-3xl font-black leading-tight mb-8">Festive<br />Til-Gul Magic</h2>
-               <button onClick={() => { setSelectedCategory('Sankranti Specials'); setCurrentScreen('category'); }} className="bg-white text-[#48c4e4] px-8 py-3.5 rounded-full font-black text-xs uppercase tracking-widest active:scale-95 transition-all shadow-lg">Explore Specials</button>
+         {/* Dynamic Sliding Background Promo */}
+         <div className="mx-5 mb-10 relative overflow-hidden rounded-[32px] bg-indigo-600 shadow-2xl h-48 group">
+            {/* Sliding Background Pattern */}
+            <div className="absolute inset-0 opacity-10 flex animate-marquee whitespace-nowrap">
+               <span className="text-6xl font-black mx-4 text-white">🏏 🥤 🌭 🏏 🥤 🌭 🏏 🥤 🌭</span>
+               <span className="text-6xl font-black mx-4 text-white">🏏 🥤 🌭 🏏 🥤 🌭 🏏 🥤 🌭</span>
+               <span className="text-6xl font-black mx-4 text-white">🏏 🥤 🌭 🏏 🥤 🌭 🏏 🥤 🌭</span>
+               <span className="text-6xl font-black mx-4 text-white">🏏 🥤 🌭 🏏 🥤 🌭 🏏 🥤 🌭</span>
             </div>
-            <div className="min-w-full snap-center bg-[#ff1b6b] rounded-[40px] p-8 text-white relative overflow-hidden shadow-xl">
-               <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2 opacity-80">Heritage Gifting</p>
-               <h2 className="text-3xl font-black leading-tight mb-8">Gifting with Love</h2>
-               <button className="bg-white text-[#ff1b6b] px-8 py-3.5 rounded-full font-black text-xs uppercase tracking-widest shadow-lg">Browse Valentine</button>
+
+            {/* Overlay Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10 px-4">
+               <div className="inline-block bg-yellow-400 text-indigo-900 border-2 border-indigo-900 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest -rotate-2 mb-2 shadow-[4px_4px_0px_0px_rgba(49,46,129,1)]">
+                  Limited Time Offer
+               </div>
+               <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter leading-[0.9] drop-shadow-md mb-2">
+                  Powerplay<br />Snacking
+               </h2>
+               <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-4">Get 20% off during match hours</p>
+               <button className="bg-white text-indigo-600 px-6 py-2.5 rounded-full font-black text-xs uppercase tracking-widest shadow-lg hover:bg-orange-400 hover:text-white transition-colors">
+                  View Menu
+               </button>
             </div>
          </div>
 
@@ -315,39 +396,95 @@ export const CustomerApp: React.FC = () => {
       <div className="animate-in fade-in duration-500 pb-32">
          <header className="px-8 pt-16 pb-8 flex justify-center">
             <div className="relative">
-               <div className="w-32 h-32 rounded-full border-4 border-white shadow-2xl overflow-hidden bg-stone-50">
+               <div className="w-32 h-32 rounded-full border-4 border-white shadow-2xl overflow-hidden bg-indigo-50">
                   <img src="https://picsum.photos/seed/harshita/400" className="w-full h-full object-cover" />
                </div>
-               <div className="absolute -bottom-2 -right-2 bg-orange-600 w-10 h-10 rounded-full border-4 border-white flex items-center justify-center text-white shadow-lg">
-                  <UserIcon className="w-4 h-4" />
-               </div>
+               <button
+                  onClick={() => setIsEditingProfile(!isEditingProfile)}
+                  className="absolute -bottom-2 -right-2 bg-indigo-600 w-10 h-10 rounded-full border-4 border-white flex items-center justify-center text-white shadow-lg hover:bg-indigo-700 transition-colors"
+               >
+                  {isEditingProfile ? <CheckCircle2 className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+               </button>
             </div>
          </header>
 
-         <div className="text-center px-8 mb-10">
-            <h2 className="text-3xl font-sans font-black text-stone-800 leading-none mb-1">Harshita Sharma</h2>
-            <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">+91 98765 43210 • harshita@example.com</p>
+         {/* Editable Profile Section */}
+         <div className="px-8 mb-10">
+            {isEditingProfile ? (
+               <div className="space-y-4 bg-white p-6 rounded-[32px] border border-indigo-100 shadow-xl">
+                  {/* Read Only Fields */}
+                  <div>
+                     <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">Full Name (Locked)</label>
+                     <input type="text" value={profileData.name} disabled className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-500 font-bold text-sm cursor-not-allowed" />
+                  </div>
+                  <div>
+                     <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">Mobile Number (Locked)</label>
+                     <input type="text" value={profileData.phone} disabled className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-500 font-bold text-sm cursor-not-allowed" />
+                  </div>
+
+                  {/* Editable Fields */}
+                  <div>
+                     <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Email Address</label>
+                     <input
+                        type="email"
+                        value={profileData.email}
+                        onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-stone-800 font-bold text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Date of Birth</label>
+                        <input
+                           type="date"
+                           value={profileData.dob}
+                           onChange={(e) => setProfileData({ ...profileData, dob: e.target.value })}
+                           className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-stone-800 font-bold text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                     </div>
+                     <div>
+                        <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Fav Team</label>
+                        <select
+                           value={profileData.favTeam}
+                           onChange={(e) => setProfileData({ ...profileData, favTeam: e.target.value })}
+                           className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-stone-800 font-bold text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
+                        >
+                           <option>India</option> <option>Australia</option> <option>England</option> <option>South Africa</option>
+                        </select>
+                     </div>
+                  </div>
+               </div>
+            ) : (
+               <div className="text-center">
+                  <h2 className="text-3xl font-sans font-black text-indigo-900 leading-none mb-1">{profileData.name}</h2>
+                  <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">{profileData.phone}</p>
+                  <div className="inline-flex items-center gap-2 bg-indigo-50 px-3 py-1 rounded-full">
+                     <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                     <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{profileData.email}</span>
+                  </div>
+               </div>
+            )}
          </div>
 
          <div className="px-8 grid grid-cols-2 gap-4 mb-10">
-            <div className="bg-orange-50 rounded-[32px] p-6 text-center border border-orange-100 shadow-sm">
-               <p className="text-[10px] font-black text-orange-800 uppercase tracking-widest mb-1">Loyalty Points</p>
-               <p className="text-3xl font-black text-orange-600">{user.points}</p>
+            <div className="bg-indigo-50 rounded-[32px] p-6 text-center border border-indigo-100 shadow-sm">
+               <p className="text-[10px] font-black text-indigo-800 uppercase tracking-widest mb-1">T20 Runs (Pts)</p>
+               <p className="text-3xl font-black text-indigo-600">{user.points}</p>
             </div>
-            <div className="bg-rose-50 rounded-[32px] p-6 text-center border border-rose-100 shadow-sm">
-               <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest mb-1">Total Orders</p>
-               <p className="text-3xl font-black text-rose-600">2</p>
+            <div className="bg-blue-50 rounded-[32px] p-6 text-center border border-blue-100 shadow-sm">
+               <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-1">Matches (Orders)</p>
+               <p className="text-3xl font-black text-blue-600">2</p>
             </div>
          </div>
 
          <div className="px-8 space-y-3">
             {[
-               { id: 'history', label: 'My Orders', sub: '2 HISTORICAL ORDERS', icon: ShoppingCart, color: 'text-orange-600' },
-               { id: 'wishlist', label: 'Wishlist', sub: `${wishlist.length} SAVED ITEMS`, icon: Heart, color: 'text-rose-500' },
-               { id: 'addresses', label: 'Saved Addresses', sub: '2 ADDRESSES', icon: MapPin, color: 'text-stone-400' },
+               { id: 'history', label: 'Match Orders', sub: '2 HISTORICAL ORDERS', icon: ShoppingCart, color: 'text-indigo-600' },
+               { id: 'wishlist', label: 'Fav Players (Wishlist)', sub: `${wishlist.length} SAVED ITEMS`, icon: Heart, color: 'text-rose-500' },
+               { id: 'addresses', label: 'Stadium Seats (Addresses)', sub: '2 LOCATIONS', icon: MapPin, color: 'text-stone-400' },
                { id: 'payment', label: 'Payment Methods', sub: 'VISA •••• 4242', icon: Wallet, color: 'text-stone-400' },
                { id: 'settings', label: 'Settings', sub: 'PRIVACY & SECURITY', icon: Settings, color: 'text-stone-400' },
-               { id: 'support', label: 'Support & FAQ', sub: 'GET HELP', icon: Info, color: 'text-stone-400' }
+               { id: 'support', label: 'Umpire Call (Support)', sub: 'GET HELP', icon: Info, color: 'text-stone-400' }
             ].map(item => (
                <button
                   key={item.id}
@@ -440,6 +577,75 @@ export const CustomerApp: React.FC = () => {
       </div>
    );
 
+   const renderAddressSearch = () => (
+      <div className="fixed inset-0 z-[2002] bg-stone-50 animate-in slide-in-from-bottom duration-300 flex flex-col">
+         {/* Header */}
+         <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-stone-100 shadow-sm sticky top-0 z-10">
+            <h2 className="text-lg font-black text-stone-800">Your Location</h2>
+            <button onClick={() => setShowAddressSearch(false)} className="p-2 bg-stone-100 rounded-full hover:bg-stone-200"><X className="w-5 h-5 text-stone-600" /></button>
+         </div>
+
+         {/* Search Input */}
+         <div className="px-6 py-4 bg-white">
+            <div className="relative">
+               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+               <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search a new address"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-500 transition-all"
+               />
+            </div>
+         </div>
+
+         {/* Current Location */}
+         <div className="mx-6 mt-4 bg-white p-4 rounded-2xl border border-stone-100 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-4">
+               <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
+                  <MapPin className="w-5 h-5" />
+               </div>
+               <div>
+                  <h4 className="font-bold text-rose-500 text-sm">Use My Current Location</h4>
+                  <p className="text-[10px] text-stone-400 font-bold">Enable location for better services</p>
+               </div>
+            </div>
+            <button className="px-4 py-2 border border-rose-200 text-rose-500 rounded-lg text-xs font-black shadow-sm" onClick={() => {
+               // Mock adding current location
+               setAddresses([...addresses, { id: `addr${Date.now()}`, label: 'Home - Current', val: '12th Main, Indiranagar, Bangalore', active: false }]);
+               setShowAddressSearch(false);
+            }}>Enable</button>
+         </div>
+
+         {/* Mock Results */}
+         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Nearby Locations</p>
+            {[
+               { name: 'You and Me', addr: 'Shankar Nagar Road, Raipur' },
+               { name: 'You and Me Coliving PG', addr: 'Pattandur Agrahara, Whitefield' },
+               { name: 'You and Me Foundation', addr: 'Royal Colony, Balapur' },
+               { name: 'Hotel You and Me Rooms', addr: 'Opp. Kosad Lake Garden, Surat' }
+            ].map((place, idx) => (
+               <button
+                  key={idx}
+                  onClick={() => {
+                     setAddresses([...addresses, { id: `addr${Date.now()}`, label: place.name, val: place.addr, active: false }]);
+                     setShowAddressSearch(false);
+                  }}
+                  className="w-full text-left bg-white p-4 rounded-2xl border border-stone-100 flex items-start gap-4 hover:border-orange-200 hover:shadow-md transition-all group"
+               >
+                  <div className="mt-1 w-8 h-8 rounded-full bg-stone-50 flex-shrink-0 flex items-center justify-center text-stone-400 group-hover:bg-orange-50 group-hover:text-orange-500 transition-colors">
+                     <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                     <p className="font-bold text-stone-800 text-sm">{place.name}</p>
+                     <p className="text-xs text-stone-400 font-medium line-clamp-1">{place.addr}</p>
+                  </div>
+               </button>
+            ))}
+         </div>
+      </div>
+   );
+
    const renderAddresses = () => (
       <div className="bg-white min-h-screen animate-in slide-in-from-right duration-300 z-[200] relative pb-20">
          <header className="px-6 pt-16 pb-8 border-b border-stone-50 flex items-center gap-4 sticky top-0 bg-white/90 backdrop-blur-md">
@@ -461,7 +667,10 @@ export const CustomerApp: React.FC = () => {
                   {addr.active && <CheckCircle2 className="w-5 h-5 text-orange-500" />}
                </div>
             ))}
-            <button className="w-full py-4 border-2 border-dashed border-stone-200 rounded-[24px] text-stone-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-orange-200 hover:text-orange-500 transition-all">
+            <button
+               onClick={() => setShowAddressSearch(true)}
+               className="w-full py-4 border-2 border-dashed border-stone-200 rounded-[24px] text-stone-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-orange-200 hover:text-orange-500 transition-all"
+            >
                <Plus className="w-5 h-5" /> Add New Address
             </button>
          </div>
@@ -726,6 +935,7 @@ export const CustomerApp: React.FC = () => {
             {currentScreen === 'wishlist' && renderWishlist()}
 
             {currentScreen === 'addresses' && renderAddresses()}
+            {showAddressSearch && renderAddressSearch()}
             {currentScreen === 'payment' && renderPaymentMethods()}
             {currentScreen === 'history' && renderHistory()}
             {currentScreen === 'category' && renderCategoryDetail()}

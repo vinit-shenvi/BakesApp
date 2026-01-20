@@ -23,12 +23,14 @@ const data = [
 ];
 
 export const AdminDashboard: React.FC = () => {
-  const { orders, products, deliveryPartners, updateOrderStatus, addPartner, deliverySettings, updateDeliverySettings, addProduct, userRole } = useStore();
+  const { orders, products, deliveryPartners, updateOrderStatus, addPartner, deliverySettings, updateDeliverySettings, addProduct, userRole, toggleProductStatus, user, updateProduct } = useStore();
   const [activeView, setActiveView] = useState<'overview' | 'orders' | 'products' | 'delivery' | 'festivals' | 'customers' | 'settings' | 'order_details'>('overview');
   const [orderFilter, setOrderFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false); // New: Tracking edit mode
+  const [selectedStore, setSelectedStore] = useState('ALL'); // New: Store Filter
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'menu' | 'customers' | 'analytics' | 'finance' | 'settings'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -60,7 +62,8 @@ export const AdminDashboard: React.FC = () => {
   const [newRider, setNewRider] = useState({ name: '', phone: '', bloodGroup: '', email: '', password: '' });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  const filteredOrders = orderFilter === 'ALL' ? (orders || []) : (orders || []).filter(o => o.status === orderFilter);
+  const ordersInStore = selectedStore === 'ALL' ? (orders || []) : (orders || []).filter(o => o.storeId === selectedStore);
+  const filteredOrders = orderFilter === 'ALL' ? ordersInStore : ordersInStore.filter(o => o.status === orderFilter);
 
   // ... handlers ...
 
@@ -556,44 +559,85 @@ export const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-stone-800 uppercase tracking-tighter">Product Inventory</h2>
         {isSuperAdmin && (
-          <button onClick={() => setShowProductModal(true)} className="bg-stone-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-stone-800 transition-all flex items-center gap-2">
+          <button onClick={() => {
+            setIsEditing(false);
+            setNewProduct({ name: '', category: 'Fresh Sweets', price: 0, image: 'https://picsum.photos/seed/new/400/300', inStock: true, description: '' });
+            setShowProductModal(true);
+          }} className="bg-stone-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-stone-800 transition-all flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Product
           </button>
         )}
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map(p => (
-          <div key={p.id} className="bg-white p-4 rounded-3xl border border-stone-100 hover:shadow-lg transition-all group">
-            <div className="flex gap-4">
-              <div className="w-24 h-24 bg-stone-100 rounded-2xl overflow-hidden relative">
-                <img src={p.image} className="w-full h-full object-cover" />
-                {!p.inStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold uppercase">Out of Stock</div>}
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="font-bold text-stone-800">{p.name}</h4>
-                  <button className="text-stone-300 hover:text-stone-600"><MoreVertical className="w-5 h-5" /></button>
-                </div>
-                <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-3">{p.category}</p>
-                <div className="flex items-center justify-between">
-                  <span className="font-black text-lg text-stone-800">₹{p.price}</span>
-                  <div className="flex items-center gap-2">
-                    {/* Stock Toggle for Everyone */}
-                    <div className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${p.inStock ? 'bg-emerald-500' : 'bg-stone-200'}`}>
-                      <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${p.inStock ? 'translate-x-4' : 'translate-x-0'}`} />
+      {/* Product Table */}
+      <div className="bg-white rounded-3xl border border-stone-100 shadow-sm overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-stone-50 border-b border-stone-100">
+            <tr>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm">Name</th>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm">Code</th>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm">Shelf Life</th>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm">Courier Available</th>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm">Variants</th>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm text-center">Status</th>
+              <th className="px-6 py-4 font-bold text-stone-800 text-sm text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {products.map(p => (
+              <tr key={p.id} className="hover:bg-stone-50/50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-stone-100 rounded-lg overflow-hidden flex-shrink-0">
+                      <img src={p.image} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-stone-800 text-sm">{p.name}</p>
+                      <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wide">{p.category}</p>
                     </div>
                   </div>
-                </div>
-                {/* Outlet Admin Restriction Note */}
-                {!isSuperAdmin && (
-                  <p className="text-[9px] text-stone-300 mt-2 italic">Stock management only</p>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+                </td>
+                <td className="px-6 py-4 text-sm font-medium text-stone-600">{p.code || '-'}</td>
+                <td className="px-6 py-4 text-sm font-medium text-stone-600">{p.shelfLife || '-'}</td>
+                <td className="px-6 py-4 text-sm font-medium text-stone-600">{p.courierAvailable ? 'YES' : 'NO'}</td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {(p.variants || []).map(v => (
+                      <span key={v.id} className={`px-2 py-1 rounded-md text-[10px] font-bold border ${v.inStock ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-400 border-stone-200'}`}>
+                        {v.weight}
+                      </span>
+                    ))}
+                    <button
+                      onClick={() => handleEditProduct(p)}
+                      className="px-2 py-1 rounded-md text-[10px] font-bold border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors"
+                    >
+                      + Add variant
+                    </button>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <div className="flex justify-center">
+                    <div
+                      onClick={() => toggleProductStatus(p.id)}
+                      className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${p.inStock ? 'bg-emerald-500' : 'bg-stone-200'}`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${p.inStock ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => handleEditProduct(p)}
+                    className="p-2 hover:bg-stone-100 rounded-lg text-stone-400 hover:text-stone-800 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -828,10 +872,23 @@ export const AdminDashboard: React.FC = () => {
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (newProduct.name && newProduct.price) {
-      addProduct({ ...newProduct, id: `prod_${Date.now()}` } as Product);
+      if (isEditing) {
+        // Update existing product
+        updateProduct({ ...newProduct } as Product); // ID is already in newProduct
+      } else {
+        // Create new
+        addProduct({ ...newProduct, id: `prod_${Date.now()}` } as Product);
+      }
       setShowProductModal(false);
+      setIsEditing(false);
       setNewProduct({ name: '', category: 'Fresh Sweets', price: 0, image: 'https://picsum.photos/seed/new/400/300', inStock: true, description: '' });
     }
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setNewProduct(product);
+    setIsEditing(true);
+    setShowProductModal(true);
   };
 
   const exportCustomersCSV = () => {
@@ -845,7 +902,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <Card className="max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">Add New Product</h3>
+              <h3 className="text-xl font-bold">{isEditing ? 'Edit Product' : 'Add New Product'}</h3>
               <button onClick={() => setShowProductModal(false)}><X className="w-6 h-6 text-stone-400 hover:text-stone-600" /></button>
             </div>
             <form onSubmit={handleAddProduct} className="space-y-4">
@@ -884,16 +941,57 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Weights Selection */}
+              {/* Dynamic Variants Section */}
               <div>
-                <label className="text-xs font-bold text-stone-500 uppercase block mb-2">Available Weights</label>
-                <div className="flex gap-2 flex-wrap">
-                  {['250g', '500g', '1kg', 'Custom'].map(w => (
-                    <label key={w} className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-lg border border-stone-100 cursor-pointer">
-                      <input type="checkbox" className="rounded text-amber-600 focus:ring-amber-500" />
-                      <span className="text-xs font-bold text-stone-600">{w}</span>
-                    </label>
+                <label className="text-xs font-bold text-stone-500 uppercase block mb-2">Variants</label>
+                <div className="space-y-2">
+                  {(newProduct.variants || []).map((v, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        className="bg-stone-50 border border-stone-200 rounded-lg p-2 text-xs font-bold w-24"
+                        placeholder="Weight"
+                        value={v.weight}
+                        onChange={(e) => {
+                          const vars = [...(newProduct.variants || [])];
+                          vars[idx].weight = e.target.value;
+                          setNewProduct({ ...newProduct, variants: vars });
+                        }}
+                      />
+                      <input
+                        type="number"
+                        className="bg-stone-50 border border-stone-200 rounded-lg p-2 text-xs font-bold w-20"
+                        placeholder="Price"
+                        value={v.price}
+                        onChange={(e) => {
+                          const vars = [...(newProduct.variants || [])];
+                          vars[idx].price = Number(e.target.value);
+                          setNewProduct({ ...newProduct, variants: vars });
+                        }}
+                      />
+                      <button type="button" onClick={() => {
+                        const vars = [...(newProduct.variants || [])];
+                        vars[idx].inStock = !vars[idx].inStock;
+                        setNewProduct({ ...newProduct, variants: vars });
+                      }} className={`px-2 py-1 rounded text-[10px] font-bold ${v.inStock ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {v.inStock ? 'Stock In' : 'Stock Out'}
+                      </button>
+                      <button type="button" onClick={() => {
+                        const vars = [...(newProduct.variants || [])];
+                        vars.splice(idx, 1);
+                        setNewProduct({ ...newProduct, variants: vars });
+                      }} className="text-stone-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                    </div>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setNewProduct({
+                      ...newProduct,
+                      variants: [...(newProduct.variants || []), { id: `v_${Date.now()}`, weight: '', price: 0, inStock: true }]
+                    })}
+                    className="text-xs font-bold text-amber-600 hover:underline"
+                  >
+                    + Add another variant
+                  </button>
                 </div>
               </div>
 
@@ -909,7 +1007,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="pt-4">
-                <Button variant="primary" className="w-full py-4 text-base">Create Product</Button>
+                <Button variant="primary" className="w-full py-4 text-base">{isEditing ? 'Save Changes' : 'Create Product'}</Button>
               </div>
             </form>
           </Card>
@@ -1094,6 +1192,27 @@ export const AdminDashboard: React.FC = () => {
             <Search className="w-4 h-4 text-stone-400" />
             <input type="text" placeholder="Search for orders, partners..." className="bg-transparent focus:outline-none text-sm w-full" />
           </div>
+          {/* Store Welcome Message */}
+          {userRole === 'outlet_admin' && (
+            <div className="hidden md:block">
+              <h2 className="text-xl font-display text-stone-800">
+                Welcome to <span className="text-amber-600">{user.storeName || 'Indiranagar'} Store</span>
+              </h2>
+            </div>
+          )}
+          {/* Store Filter (Super Admin) */}
+          {isSuperAdmin && (
+            <select
+              value={selectedStore}
+              onChange={e => setSelectedStore(e.target.value)}
+              className="bg-stone-100 border-none text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 ml-4 hidden md:block"
+            >
+              <option value="ALL">All Stores</option>
+              {['Indiranagar', 'Koramangala', 'Jayanagar', 'Whitefield'].map(s => (
+                <option key={s} value={s}>{s} Store</option>
+              ))}
+            </select>
+          )}
           <div className="flex items-center gap-4 ml-auto">
             <div className="flex flex-col items-end mr-2 hidden sm:flex">
               <p className="text-xs font-bold text-stone-800">{orders.filter(o => o.status === OrderStatus.NEW).length} Pending Tasks</p>

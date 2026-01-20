@@ -26,6 +26,9 @@ interface StoreContextType {
   userRole: 'super_admin' | 'outlet_admin' | 'customer' | 'delivery' | 'admin' | null;
   login: (email: string, role: 'super_admin' | 'outlet_admin' | 'customer' | 'delivery' | 'admin') => void;
   register: (name: string, email: string, role: 'customer') => void;
+  toggleProductStatus: (productId: string) => void;
+  addProduct: (product: Product) => void;
+  updateProduct: (product: Product) => void;
   logout: () => void;
 }
 
@@ -173,6 +176,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setProducts(prev => [...prev, product]);
   };
 
+  const toggleProductStatus = (productId: string) => {
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, inStock: !p.inStock } : p));
+  };
+
+  const updateProduct = (updatedProduct: Product) => {
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  };
+
   const calculateDeliveryFee = (location: google.maps.LatLngLiteral) => {
     const STORE_LOC = { lat: 12.7786, lng: 77.7629 };
     const R = 6371;
@@ -203,7 +214,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addToCart, removeFromCart, updateCartQuantity, toggleWishlist,
       placeOrder, updateOrderStatus, assignDeliveryPartner, addPartner,
       deliverySettings, updateDeliverySettings, calculateDeliveryFee,
-      isAuthenticated, userRole, login, logout, togglePartnerStatus, addProduct, register
+      isAuthenticated, userRole, login, logout, togglePartnerStatus, addProduct, updateProduct, toggleProductStatus, register
     }}>
       {children}
     </StoreContext.Provider>

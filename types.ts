@@ -15,12 +15,23 @@ export enum DeliveryMethod {
   HOME_DELIVERY = 'HOME_DELIVERY'
 }
 
+export interface ProductVariant {
+  id: string;
+  weight: string; // e.g. "1 kg", "500 gms"
+  price: number;
+  inStock: boolean;
+}
+
 export interface Product {
   id: string;
+  code?: string; // New
   name: string;
   category: string;
-  price: number;
+  price: number; // Base price or range start
   image: string;
+  shelfLife?: string; // New e.g. "60 days"
+  courierAvailable?: boolean; // New
+  variants?: ProductVariant[]; // New
   isBestSeller?: boolean;
   isFestive?: boolean;
   festiveType?: string;
@@ -45,6 +56,7 @@ export interface Order {
   method: DeliveryMethod;
   timestamp: string;
   partnerId?: string;
+  storeId?: string; // New: For Multi-Store
   paymentStatus: 'PAID' | 'PENDING';
   shippingCharge?: number;
   tax?: number;
@@ -58,6 +70,7 @@ export interface User {
   email: string;
   role: 'super_admin' | 'outlet_admin' | 'customer' | 'delivery' | 'admin'; // keeping 'admin' for backward compat until refactored
   storeId?: string; // For outlet admins
+  storeName?: string; // For display purposes
   points: number;
   orders: string[];
   wishlist: string[];

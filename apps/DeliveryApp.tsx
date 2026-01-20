@@ -20,7 +20,7 @@ export const DeliveryApp: React.FC = () => {
   // Use logged-in user ID to identify the partner
   const partner = partners.find(p => p.id === user.id);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'earnings' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'profile'>('home');
   const [viewMode, setViewMode] = useState<ViewMode>('LIST');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [filter, setFilter] = useState<'ALL' | 'NEW' | 'ACTIVE'>('ALL');
@@ -131,7 +131,7 @@ export const DeliveryApp: React.FC = () => {
             <div className="flex gap-3">
               {order.status === OrderStatus.NEW ? (
                 <button
-                  onClick={() => updateOrderStatus(order.id, OrderStatus.ACCEPTED)}
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.ACCEPTED, partner.id)}
                   className="flex-1 py-3.5 rounded-2xl bg-stone-800 text-white font-bold text-sm hover:bg-stone-900 transition-all"
                 >
                   Accept Order
@@ -140,7 +140,7 @@ export const DeliveryApp: React.FC = () => {
 
               {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.PREPARING || order.status === OrderStatus.READY) && (
                 <button
-                  onClick={() => updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY)}
+                  onClick={() => updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY, partner.id)}
                   className="flex-1 py-3.5 rounded-2xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-all"
                 >
                   Pick Up
@@ -341,7 +341,6 @@ export const DeliveryApp: React.FC = () => {
         {viewMode === 'LIST' ? (
           <>
             {activeTab === 'home' && renderHome()}
-            {activeTab === 'earnings' && renderEarnings()}
             {activeTab === 'profile' && renderProfile()}
           </>
         ) : (
@@ -357,13 +356,6 @@ export const DeliveryApp: React.FC = () => {
           >
             <Home className="w-6 h-6" />
             <span className="text-[10px] font-bold">Home</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('earnings')}
-            className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'earnings' ? 'text-emerald-600' : 'text-stone-300'}`}
-          >
-            <Wallet className="w-6 h-6" />
-            <span className="text-[10px] font-bold">Earnings</span>
           </button>
           <button
             onClick={() => setActiveTab('profile')}
